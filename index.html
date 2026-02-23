@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Lorl Studio — Game Editor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/studio.css"/>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════ TOP BAR ══ -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="logo"><span class="logo-l">L</span>orl <span class="logo-studio">Studio</span></div>
+    <div class="project-name-wrap">
+      <input type="text" id="project-name" value="My Game" class="project-name-input" spellcheck="false"/>
+    </div>
+  </div>
+  <div class="topbar-center">
+    <button class="tb-btn" id="btn-blocks" data-tab="blocks" title="Block Editor">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="3" width="8" height="8" rx="1"/><rect x="3" y="13" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/></svg>
+      Blocks
+    </button>
+    <button class="tb-btn" id="btn-code" data-tab="code" title="Code Editor">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+      Code
+    </button>
+    <button class="tb-btn" id="btn-scene" data-tab="scene" title="3D Scene">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+      Scene
+    </button>
+    <button class="tb-btn" id="btn-assets" data-tab="assets" title="Assets">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      Assets
+    </button>
+  </div>
+  <div class="topbar-right">
+    <button class="tb-btn-icon" id="btn-undo" title="Undo">↩</button>
+    <button class="tb-btn-icon" id="btn-redo" title="Redo">↪</button>
+    <div class="sep"></div>
+    <button class="tb-btn" id="btn-import" title="Import .lorlgame">⬆ Import</button>
+    <button class="btn-run" id="btn-preview">▶ Preview</button>
+    <button class="btn-export" id="btn-export">⬇ Export .lorlgame</button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════ MAIN LAYOUT ══ -->
+<div class="studio-layout">
+
+  <!-- LEFT PANEL: Object tree + properties -->
+  <aside class="panel-left">
+    <div class="panel-section">
+      <div class="panel-title">
+        <span>Objects</span>
+        <button class="icon-btn" id="btn-add-object" title="Add Object">+</button>
+      </div>
+      <div id="object-tree"></div>
+    </div>
+    <div class="panel-section panel-props" id="panel-props">
+      <div class="panel-title"><span>Properties</span></div>
+      <div id="props-content"><div class="empty-hint">Select an object</div></div>
+    </div>
+  </aside>
+
+  <!-- CENTER: Editor tabs -->
+  <main class="center-panel">
+
+    <!-- BLOCKS TAB -->
+    <div class="tab-panel active" id="tab-blocks">
+      <div class="blocks-layout">
+        <!-- Block palette -->
+        <div class="block-palette" id="block-palette">
+          <div class="palette-search-wrap">
+            <input type="text" id="palette-search" placeholder="Search blocks..." class="palette-search"/>
+          </div>
+          <div id="palette-categories"></div>
+        </div>
+        <!-- Block canvas -->
+        <div class="block-canvas-wrap">
+          <div class="block-canvas" id="block-canvas">
+            <div class="canvas-hint" id="canvas-hint">
+              <div class="hint-icon">🧩</div>
+              <div class="hint-text">Select an object from the left panel,<br>then drag blocks here to script it.</div>
+            </div>
+          </div>
+          <div class="canvas-toolbar">
+            <button class="canvas-tool" id="btn-fit">⛶ Fit</button>
+            <button class="canvas-tool" id="btn-zoom-in">+</button>
+            <button class="canvas-tool" id="btn-zoom-out">−</button>
+            <span id="zoom-label">100%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CODE TAB -->
+    <div class="tab-panel" id="tab-code">
+      <div class="code-layout">
+        <div class="code-sidebar">
+          <div class="panel-title" style="padding:0.75rem 1rem"><span>Script Files</span><button class="icon-btn" id="btn-new-script">+</button></div>
+          <div id="script-file-list"></div>
+        </div>
+        <div class="code-editor-wrap">
+          <div class="code-header">
+            <span id="code-filename">index.js</span>
+            <div class="code-actions">
+              <button class="canvas-tool" id="btn-sync-blocks">← Sync to Blocks</button>
+              <button class="canvas-tool" id="btn-format-code">Format</button>
+            </div>
+          </div>
+          <div id="code-editor"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SCENE TAB -->
+    <div class="tab-panel" id="tab-scene">
+      <div class="scene-layout">
+        <div class="scene-tools">
+          <button class="scene-tool active" id="tool-select" title="Select (Q)">✦</button>
+          <button class="scene-tool" id="tool-move" title="Move (W)">✥</button>
+          <button class="scene-tool" id="tool-rotate" title="Rotate (E)">↻</button>
+          <button class="scene-tool" id="tool-scale" title="Scale (R)">⤢</button>
+          <div class="scene-sep"></div>
+          <button class="scene-tool" id="tool-add-cube" title="Add Cube">⬜</button>
+          <button class="scene-tool" id="tool-add-sphere" title="Add Sphere">⬭</button>
+          <button class="scene-tool" id="tool-add-cylinder" title="Add Cylinder">⬛</button>
+          <button class="scene-tool" id="tool-add-plane" title="Add Plane">▬</button>
+          <button class="scene-tool" id="tool-add-light" title="Add Light">💡</button>
+          <button class="scene-tool" id="tool-add-camera" title="Add Camera">📷</button>
+          <button class="scene-tool" id="tool-add-spawn" title="Add Spawn">🚀</button>
+        </div>
+        <div class="scene-viewport" id="scene-viewport">
+          <canvas id="scene-canvas"></canvas>
+          <div class="scene-overlay-controls">
+            <div class="view-buttons">
+              <button class="view-btn" id="vbtn-top">Top</button>
+              <button class="view-btn" id="vbtn-front">Front</button>
+              <button class="view-btn" id="vbtn-right">Right</button>
+              <button class="view-btn active" id="vbtn-persp">Perspective</button>
+            </div>
+            <div class="scene-stats" id="scene-stats">Objects: 0</div>
+          </div>
+        </div>
+        <div class="scene-props-panel" id="scene-props-panel">
+          <div class="panel-title"><span>Object Properties</span></div>
+          <div id="scene-props-content"><div class="empty-hint">Select an object in the scene</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ASSETS TAB -->
+    <div class="tab-panel" id="tab-assets">
+      <div class="assets-layout">
+        <div class="assets-sidebar">
+          <div class="asset-cat active" data-cat="all">All</div>
+          <div class="asset-cat" data-cat="models">Models</div>
+          <div class="asset-cat" data-cat="textures">Textures</div>
+          <div class="asset-cat" data-cat="sounds">Sounds</div>
+          <div class="asset-cat" data-cat="scripts">Scripts</div>
+        </div>
+        <div class="assets-main">
+          <div class="assets-toolbar">
+            <button class="btn-run" id="btn-import-asset">+ Import Asset</button>
+            <button class="tb-btn" id="btn-new-texture">New Texture</button>
+          </div>
+          <div class="assets-grid" id="assets-grid"></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- RIGHT PANEL: Preview / console -->
+  <aside class="panel-right">
+    <div class="panel-section" style="flex:1">
+      <div class="panel-title">
+        <span>Preview</span>
+        <button class="icon-btn" id="btn-popout-preview" title="Pop out">⊡</button>
+      </div>
+      <div class="preview-wrap">
+        <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+        <div class="preview-overlay" id="preview-overlay">
+          <button class="preview-play-btn" id="btn-play-preview">▶</button>
+          <div class="preview-hint">Click to preview your game</div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-section console-section">
+      <div class="panel-title">
+        <span>Console</span>
+        <button class="icon-btn" id="btn-clear-console" title="Clear">✕</button>
+      </div>
+      <div id="console-output"></div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ═══════════════════════════════════ MODALS ══ -->
+<div id="modal-overlay" class="modal-overlay hidden">
+
+  <!-- Add Object Modal -->
+  <div id="modal-add-object" class="modal hidden">
+    <h2>Add Object</h2>
+    <div class="object-type-grid">
+      <div class="otype-card" data-type="script"><div class="otype-icon">📜</div><div class="otype-name">Script</div><div class="otype-desc">Pure logic, no visual</div></div>
+      <div class="otype-card" data-type="cube"><div class="otype-icon">⬜</div><div class="otype-name">Cube</div><div class="otype-desc">Box mesh</div></div>
+      <div class="otype-card" data-type="sphere"><div class="otype-icon">⬭</div><div class="otype-name">Sphere</div><div class="otype-desc">Sphere mesh</div></div>
+      <div class="otype-card" data-type="cylinder"><div class="otype-icon">⬛</div><div class="otype-name">Cylinder</div><div class="otype-desc">Cylinder mesh</div></div>
+      <div class="otype-card" data-type="plane"><div class="otype-icon">▬</div><div class="otype-name">Plane</div><div class="otype-desc">Flat surface</div></div>
+      <div class="otype-card" data-type="character"><div class="otype-icon">🧍</div><div class="otype-name">Character</div><div class="otype-desc">Player/NPC</div></div>
+      <div class="otype-card" data-type="camera"><div class="otype-icon">📷</div><div class="otype-name">Camera</div><div class="otype-desc">View point</div></div>
+      <div class="otype-card" data-type="light"><div class="otype-icon">💡</div><div class="otype-name">Light</div><div class="otype-desc">Point/dir/spot</div></div>
+      <div class="otype-card" data-type="trigger"><div class="otype-icon">🔲</div><div class="otype-name">Trigger Zone</div><div class="otype-desc">Area events</div></div>
+      <div class="otype-card" data-type="particle"><div class="otype-icon">✨</div><div class="otype-name">Particles</div><div class="otype-desc">Particle system</div></div>
+      <div class="otype-card" data-type="sound"><div class="otype-icon">🔊</div><div class="otype-name">Sound</div><div class="otype-desc">Audio source</div></div>
+      <div class="otype-card" data-type="ui"><div class="otype-icon">🖼</div><div class="otype-name">UI Panel</div><div class="otype-desc">Heads-up display</div></div>
+    </div>
+    <div class="modal-actions"><button class="btn-secondary" id="modal-obj-cancel">Cancel</button></div>
+  </div>
+
+  <!-- Texture editor modal -->
+  <div id="modal-texture" class="modal hidden" style="max-width:600px">
+    <h2>Texture Painter</h2>
+    <div style="display:flex;gap:1rem;margin:1rem 0">
+      <canvas id="texture-canvas" width="256" height="256" style="border:1px solid var(--border);border-radius:8px;cursor:crosshair"></canvas>
+      <div class="texture-tools">
+        <label style="font-size:0.8rem;color:var(--text2)">Color</label>
+        <input type="color" id="tex-color" value="#4488ff" style="width:100%;height:36px;border:none;border-radius:6px;cursor:pointer"/>
+        <label style="font-size:0.8rem;color:var(--text2);margin-top:0.75rem">Brush Size</label>
+        <input type="range" id="tex-brush-size" min="1" max="40" value="8" style="width:100%"/>
+        <label style="font-size:0.8rem;color:var(--text2);margin-top:0.75rem">Tool</label>
+        <button class="canvas-tool active" id="tex-tool-draw">✏️ Draw</button>
+        <button class="canvas-tool" id="tex-tool-erase" style="margin-top:0.4rem">🧹 Erase</button>
+        <button class="canvas-tool" id="tex-tool-fill" style="margin-top:0.4rem">🪣 Fill</button>
+        <button class="canvas-tool" id="tex-clear" style="margin-top:0.75rem;color:var(--danger)">Clear</button>
+      </div>
+    </div>
+    <div>
+      <label style="font-size:0.8rem;color:var(--text2)">Texture Name</label>
+      <input type="text" id="tex-name-input" value="my_texture" style="width:100%;margin-top:0.25rem"/>
+    </div>
+    <div class="modal-actions" style="margin-top:1rem">
+      <button class="btn-secondary" id="modal-tex-cancel">Cancel</button>
+      <button class="btn-run" id="modal-tex-save">Save Texture</button>
+    </div>
+  </div>
+
+  <!-- Export modal — with encryption -->
+  <div id="modal-export" class="modal hidden">
+    <h2>Export Game</h2>
+    <p style="color:var(--text2);margin:0.5rem 0 1rem">Package as a <code>.lorlgame</code> file playable in Lorl.</p>
+    <label>Game ID <small style="color:var(--text2)">(no spaces)</small></label>
+    <input type="text" id="export-id" style="margin:0.4rem 0 0.75rem;width:100%"/>
+    <label>Name</label>
+    <input type="text" id="export-name" style="margin:0.4rem 0 0.75rem;width:100%"/>
+    <label>Author</label>
+    <input type="text" id="export-author" placeholder="Your name" style="margin:0.4rem 0 0.75rem;width:100%"/>
+    <label>Description</label>
+    <input type="text" id="export-desc" placeholder="Short description" style="margin:0.4rem 0 0.75rem;width:100%"/>
+    <div style="border-top:1px solid var(--border);margin:1rem 0 0.75rem;padding-top:1rem">
+      <label style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem;cursor:pointer;font-size:0.88rem;color:var(--text);font-weight:600">
+        <input type="checkbox" id="export-encrypt-toggle" style="accent-color:var(--accent);width:16px;height:16px;cursor:pointer"/>
+        🔒 Encrypt with password (locks Studio import)
+      </label>
+      <div id="export-encrypt-fields" style="display:none">
+        <div style="background:rgba(0,212,170,0.06);border:1px solid rgba(0,212,170,0.18);border-radius:8px;padding:0.75rem;margin-bottom:0.9rem;font-size:0.8rem;color:var(--text2);line-height:1.6">
+          🔐 Encrypted games still <strong style="color:var(--text)">play normally</strong> in Lorl. Only Studio import requires the password. Uses <strong style="color:var(--text)">AES-GCM 256-bit</strong> encryption.
+        </div>
+        <label>Password <span style="color:#ef4444">*</span></label>
+        <input type="password" id="export-password" placeholder="Enter encryption password" style="margin:0.4rem 0 0.75rem;width:100%"/>
+        <label>Confirm Password <span style="color:#ef4444">*</span></label>
+        <input type="password" id="export-password-confirm" placeholder="Confirm password" style="margin:0.4rem 0 0.75rem;width:100%"/>
+        <label>Password Hint <small style="color:var(--text2)">(optional, stored unencrypted)</small></label>
+        <input type="text" id="export-password-hint" placeholder="e.g. Name of my first pet" style="margin:0.4rem 0 0;width:100%"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" id="modal-export-cancel">Cancel</button>
+      <button class="btn-run" id="modal-export-confirm">⬇ Download .lorlgame</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Asset file input -->
+<input type="file" id="import-game-input" accept=".lorlgame,.zip" style="display:none"/>
+<input type="file" id="asset-file-input" multiple accept="image/*,audio/*,.obj,.gltf,.glb" style="display:none"/>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="js/engine/scene3d.js"></script>
+<script src="js/blocks/blockdef.js"></script>
+<script src="js/blocks/blockrender.js"></script>
+<script src="js/blocks/blockcanvas.js"></script>
+<script src="js/blocks/codegen.js"></script>
+<script src="js/editor/assets.js"></script>
+<script src="js/editor/codemirror-bundle.js"></script>
+<script src="js/editor/properties.js"></script>
+<script src="js/editor/preview.js"></script>
+<script src="js/editor/export.js"></script>
+<script src="js/editor/lorl-crypto.js"></script>
+<script src="js/editor/importer.js"></script>
+<script src="js/studio.js"></script>
+</body>
+</html>
