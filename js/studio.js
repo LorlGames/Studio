@@ -153,7 +153,7 @@ if (window.Lorl) {
         kind: 'categoryToolbox',
         contents: [
           { kind: 'category', name: 'Events', colour: '#f59e0b', contents: [{ kind: 'block', type: 'event_start' }, { kind: 'block', type: 'event_update' }, { kind: 'block', type: 'event_key_down' }, { kind: 'block', type: 'event_key_up' }] },
-          { kind: 'category', name: 'Motion', colour: '#06b6d4', contents: [{ kind: 'block', type: 'move_by' }, { kind: 'block', type: 'set_position' }, { kind: 'block', type: 'move_forward' }, { kind: 'block', type: 'turn_y' }, { kind: 'block', type: 'look_at_name' }] },
+          { kind: 'category', name: 'Motion', colour: '#06b6d4', contents: [{ kind: 'block', type: 'move_by' }, { kind: 'block', type: 'set_position' }, { kind: 'block', type: 'move_forward' }, { kind: 'block', type: 'turn_y' }, { kind: 'block', type: 'look_at_name' }, { kind: 'block', type: 'enable_mouse_look' }] },
           { kind: 'category', name: 'Appearance', colour: '#ec4899', contents: [{ kind: 'block', type: 'set_color_hex' }, { kind: 'block', type: 'set_scale_xyz' }] },
           { kind: 'category', name: 'UI', colour: '#84cc16', contents: [{ kind: 'block', type: 'show_text' }] },
           { kind: 'category', name: 'Logic', colour: '#8b5cf6', contents: [{ kind: 'block', type: 'controls_if' }, { kind: 'block', type: 'logic_compare' }, { kind: 'block', type: 'key_is_down' }, { kind: 'block', type: 'wait_seconds' }] },
@@ -211,6 +211,8 @@ ${gen.statementToCode(block,'DO')}});
     gen.forBlock.turn_y = b => `__turnY(self, ${b.getFieldValue('DEG')});
 `;
 
+    Blockly.Blocks.enable_mouse_look = { init() { this.appendDummyInput().appendField('enable mouse look sens').appendField(new Blockly.FieldNumber(0.12,0.01,2,0.01), 'SENS').appendField('invert Y').appendField(new Blockly.FieldCheckbox('FALSE'), 'INVERT'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#06b6d4'); } };
+    gen.forBlock.enable_mouse_look = b => `__enableMouseLook(self, ${b.getFieldValue('SENS')}, ${b.getFieldValue('INVERT') === 'TRUE'});\n`;
 
     Blockly.Blocks.look_at_name = { init() { this.appendDummyInput().appendField('look at object').appendField(new Blockly.FieldTextInput('Player'), 'NAME'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#06b6d4'); } };
     gen.forBlock.look_at_name = b => `__lookAt(self, ${JSON.stringify(b.getFieldValue('NAME'))});\n`;
@@ -451,7 +453,31 @@ function __wait(sec){return new Promise(r=>setTimeout(r,(sec||0)*1000));}
 const __keyState = {};
 function __isKeyDown(code){return !!__keyState[code];}
 function __moveForward(o,dist){const yaw=(o.rotY||0)*Math.PI/180;__moveBy(o,Math.sin(yaw)*dist,0,-Math.cos(yaw)*dist);}
-function __turnY(o,deg){o.rotY=(o.rotY||0)+deg;if(o.mesh)o.mesh.rotation.y=(o.rotY||0)*Math.PI/180;}\nconst __mpState = { enabled: true, chatEnabled: true, vars:{}, lists:{}, tables:{}, scoreboard:{} };\nfunction __mpSetVar(n,v){__mpState.vars[n]=v;}\nfunction __mpGetVar(n){return __mpState.vars[n];}\nfunction __mpListPush(name,val){(__mpState.lists[name]=__mpState.lists[name]||[]).push(val);}\nfunction __mpListGet(name,index){const list=__mpState.lists[name]||[];return list[Math.max(0,index|0)];}\nfunction __mpTableSet(t,k,v){(__mpState.tables[t]=__mpState.tables[t]||{})[k]=v;}\nfunction __mpTableGet(t,k){return (__mpState.tables[t]||{})[k];}\nfunction __mpScoreSet(player,score){__mpState.scoreboard[player]=score; __renderScoreboard();}\nfunction __mpGetScore(player){return __mpState.scoreboard[player] ?? 0;}\nfunction __renderScoreboard(){const id='__mp_scoreboard'; let el=document.getElementById(id); if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;top:10px;right:10px;background:#000a;color:#fff;padding:8px 10px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);} el.innerHTML='<b>Scoreboard</b><br>'+Object.entries(__mpState.scoreboard).map(([k,v])=>k+': '+v).join('<br>');}\nfunction __mpChatSend(msg){if(!__mpState.chatEnabled)return;const id='__mp_chat';let el=document.getElementById(id);if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;left:10px;bottom:10px;max-width:45vw;max-height:30vh;overflow:auto;background:#000a;color:#fff;padding:8px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);}const row=document.createElement('div');row.textContent='[chat] '+msg;el.appendChild(row);el.scrollTop=el.scrollHeight;}\nwindow.Multiplayer = { state: __mpState, setVar: __mpSetVar, getVar: __mpGetVar, listPush: __mpListPush, listGet: __mpListGet, tableSet: __mpTableSet, tableGet: __mpTableGet, scoreSet: __mpScoreSet, scoreGet: __mpGetScore, chatSend: __mpChatSend };\n`;
+function __turnY(o,deg){o.rotY=(o.rotY||0)+deg;if(o.mesh)o.mesh.rotation.y=(o.rotY||0)*Math.PI/180;}
+const __mouseLookState = { bound:false, target:null, sensitivity:0.12, invertY:false, pitch:0, minPitch:-1.25, maxPitch:1.25 };
+function __bindMouseLook(){
+  if (__mouseLookState.bound) return;
+  __mouseLookState.bound = true;
+  const onMouseMove = (e) => {
+    if (!document.pointerLockElement || !__mouseLookState.target) return;
+    const t = __mouseLookState.target;
+    t.rotY = (t.rotY || 0) + e.movementX * __mouseLookState.sensitivity;
+    __mouseLookState.pitch += e.movementY * __mouseLookState.sensitivity * (__mouseLookState.invertY ? 1 : -1);
+    __mouseLookState.pitch = Math.max(__mouseLookState.minPitch, Math.min(__mouseLookState.maxPitch, __mouseLookState.pitch));
+  };
+  document.addEventListener('mousemove', onMouseMove);
+}
+function __enableMouseLook(target, sensitivity, invertY){
+  __mouseLookState.target = target || __mouseLookState.target;
+  if (Number.isFinite(sensitivity)) __mouseLookState.sensitivity = Math.max(0.01, Math.min(2, Number(sensitivity)));
+  __mouseLookState.invertY = !!invertY;
+  __bindMouseLook();
+  const lockTarget = document.getElementById('game') || document.body;
+  lockTarget.addEventListener('click', () => {
+    if (!document.pointerLockElement && lockTarget.requestPointerLock) lockTarget.requestPointerLock();
+  }, { once: true });
+}
+\nconst __mpState = { enabled: true, chatEnabled: true, vars:{}, lists:{}, tables:{}, scoreboard:{} };\nfunction __mpSetVar(n,v){__mpState.vars[n]=v;}\nfunction __mpGetVar(n){return __mpState.vars[n];}\nfunction __mpListPush(name,val){(__mpState.lists[name]=__mpState.lists[name]||[]).push(val);}\nfunction __mpListGet(name,index){const list=__mpState.lists[name]||[];return list[Math.max(0,index|0)];}\nfunction __mpTableSet(t,k,v){(__mpState.tables[t]=__mpState.tables[t]||{})[k]=v;}\nfunction __mpTableGet(t,k){return (__mpState.tables[t]||{})[k];}\nfunction __mpScoreSet(player,score){__mpState.scoreboard[player]=score; __renderScoreboard();}\nfunction __mpGetScore(player){return __mpState.scoreboard[player] ?? 0;}\nfunction __renderScoreboard(){const id='__mp_scoreboard'; let el=document.getElementById(id); if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;top:10px;right:10px;background:#000a;color:#fff;padding:8px 10px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);} el.innerHTML='<b>Scoreboard</b><br>'+Object.entries(__mpState.scoreboard).map(([k,v])=>k+': '+v).join('<br>');}\nfunction __mpChatSend(msg){if(!__mpState.chatEnabled)return;const id='__mp_chat';let el=document.getElementById(id);if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;left:10px;bottom:10px;max-width:45vw;max-height:30vh;overflow:auto;background:#000a;color:#fff;padding:8px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);}const row=document.createElement('div');row.textContent='[chat] '+msg;el.appendChild(row);el.scrollTop=el.scrollHeight;}\nwindow.Multiplayer = { state: __mpState, setVar: __mpSetVar, getVar: __mpGetVar, listPush: __mpListPush, listGet: __mpListGet, tableSet: __mpTableSet, tableGet: __mpTableGet, scoreSet: __mpScoreSet, scoreGet: __mpGetScore, chatSend: __mpChatSend };\n`;
   }
 
   function buildPlayableHtml() {
@@ -526,8 +552,14 @@ __events.emit('start');
   if (camDef && camDef.isPlayerCamera && player && player.mesh) {
     if (__templateMode === 'first_person') {
       const yaw = (player.rotY || 0) * Math.PI / 180;
+      const pitch = __mouseLookState.pitch || 0;
+      const lookDistance = 8;
       camera.position.lerp(new THREE.Vector3(player.mesh.position.x, player.mesh.position.y + 1.5, player.mesh.position.z), 0.3);
-      camera.lookAt(player.mesh.position.x + Math.sin(yaw) * 8, player.mesh.position.y + 1.5, player.mesh.position.z - Math.cos(yaw) * 8);
+      camera.lookAt(
+        player.mesh.position.x + Math.sin(yaw) * Math.cos(pitch) * lookDistance,
+        player.mesh.position.y + 1.5 + Math.sin(pitch) * lookDistance,
+        player.mesh.position.z - Math.cos(yaw) * Math.cos(pitch) * lookDistance
+      );
     } else if (__templateMode === 'two_d') {
       camera.position.lerp(new THREE.Vector3(player.mesh.position.x, player.mesh.position.y + 3, 11), 0.16);
       camera.lookAt(player.mesh.position.x, player.mesh.position.y, 0);
