@@ -13,22 +13,10 @@
   <header class="topbar">
     <div class="logo">Lorl <span>Studio</span></div>
     <input id="project-name" type="text" value="My Game" />
-
-    <select id="template-select" title="Starter template">
-      <option value="blank">Template: Blank</option>
-      <option value="first_person">Template: First Person</option>
-      <option value="third_person">Template: Third Person</option>
-      <option value="two_d">Template: 2D</option>
-      <option value="three_d" selected>Template: 3D Starter</option>
-    </select>
-    <button class="btn" id="btn-apply-template">Apply Template</button>
-
     <div class="spacer"></div>
     <button class="btn" id="btn-tutorial">📖 Tutorial</button>
-    <button class="btn" id="btn-import">⬆ Import</button>
     <button class="btn" id="btn-preview">▶ Preview</button>
-    <button class="btn accent" id="btn-export">⬇ Export .lorlgame</button>
-    <input type="file" id="import-file" accept=".lorlgame" hidden>
+    <button class="btn accent" id="btn-export">⬇ Export</button>
   </header>
 
   <main id="studio">
@@ -47,13 +35,14 @@
         <button class="tab-btn" data-tab="assets">🖼 Assets</button>
       </div>
 
-      <div class="tab-panel active" id="tab-blocks"><div id="blocklyDiv"></div></div>
+      <div class="tab-panel active" id="tab-blocks">
+        <div id="blocklyDiv"></div>
+      </div>
 
       <div class="tab-panel" id="tab-code">
         <div id="code-toolbar">
           <button class="btn" id="btn-sync-from-blocks">Blocks → Code</button>
           <button class="btn" id="btn-sync-to-blocks">Code → Blocks</button>
-          <span class="hint">Round-trip uses BLOCKLY_META headers (best effort for manual code).</span>
         </div>
         <textarea id="code-textarea" spellcheck="false"></textarea>
       </div>
@@ -62,22 +51,18 @@
         <div id="scene-toolbar">
           <button class="btn" data-add="cube">⬜ Cube</button>
           <button class="btn" data-add="sphere">⬭ Sphere</button>
-          <button class="btn" data-add="cylinder">⬛ Cylinder</button>
           <button class="btn" data-add="plane">▬ Plane</button>
-          <button class="btn" data-add="character">🧍 Player</button>
-          <button class="btn" data-add="camera">📷 Camera</button>
           <button class="btn" data-view="persp">Persp</button>
           <button class="btn" data-view="top">Top</button>
           <button class="btn" data-view="front">Front</button>
         </div>
         <canvas id="scene-canvas"></canvas>
-        <div id="scene-stats"></div>
-        <div id="scene-props-content" style="display:none"></div>
+        <div id="scene-stats"></div><div id="scene-props-content" style="display:none"></div>
       </div>
 
       <div class="tab-panel" id="tab-assets">
         <div id="assets-inner">
-          <input type="file" id="asset-file-input" multiple accept="image/*,audio/*,.obj,.gltf,.glb" />
+          <input type="file" id="asset-file-input" multiple />
           <button class="btn" id="btn-import-asset">Import Assets</button>
           <div id="assets-grid"></div>
         </div>
@@ -96,7 +81,10 @@
     <div id="tutorial-modal">
       <h2 id="tutorial-title"></h2>
       <p id="tutorial-body"></p>
-      <div><button class="btn" id="tutorial-next">Next</button><button class="btn" id="tutorial-close">Close</button></div>
+      <div>
+        <button class="btn" id="tutorial-next">Next</button>
+        <button class="btn" id="tutorial-close">Close</button>
+      </div>
     </div>
   </div>
 
