@@ -63,6 +63,52 @@ window.StudioApp = (() => {
     assets: ['Import textures/audio/models here.', 'Assets are embedded in .lorlgame export and available at runtime.']
   };
 
+  const SCRIPT_TEMPLATES = {
+    code_collect: {
+      type: 'code',
+      name: 'Coin collector + HUD',
+      content: `// Coin collector snippet
+__vars.score = __vars.score || 0;
+__hudSetText && __hudSetText('score', 'Score: ' + __vars.score);
+__events.on('coin_collected', () => {
+  __vars.score += 1;
+  __showText('Coin! Score: ' + __vars.score, 1);
+});`
+    },
+    code_camera_shake: {
+      type: 'code',
+      name: 'Camera shake on hit',
+      content: `// Camera shake on hit
+__events.on('player_hit', () => {
+  const cam = Object.values(__objects).find(o => o.type === 'camera' && o.isPlayerCamera);
+  if (!cam || !cam.mesh) return;
+  const base = cam.mesh.position.clone();
+  let t = 0;
+  const id = setInterval(() => {
+    t++;
+    cam.mesh.position.set(base.x + (Math.random()-0.5)*0.2, base.y + (Math.random()-0.5)*0.2, base.z);
+    if (t > 8) { clearInterval(id); cam.mesh.position.copy(base); }
+  }, 16);
+});`
+    },
+    code_multiplayer: {
+      type: 'code',
+      name: 'Multiplayer position sync',
+      content: `// Multiplayer position sync
+if (window.Lorl) {
+  __events.on('update', () => {
+    const player = Object.values(__objects).find(o => /player/i.test(o.name));
+    if (!player || !Lorl.isConnected()) return;
+    Lorl.updateState({ x: player.x, y: player.y, z: player.z });
+  });
+}`
+    },
+    blocks_topdown: { type: 'blocks', name: 'Top-down movement blocks' },
+    blocks_spin: { type: 'blocks', name: 'Spin object blocks' },
+    blocks_pingpong: { type: 'blocks', name: 'Ping-pong movement blocks' },
+  };
+
+
   function setupBlockly() {
     const darkTheme = (Blockly.Themes && Blockly.Themes.Dark) || ((Blockly.Theme && Blockly.Theme.defineTheme && Blockly.Themes && Blockly.Themes.Classic) ? Blockly.Theme.defineTheme('lorlDark', {
       base: Blockly.Themes.Classic,
@@ -511,9 +557,98 @@ __events.emit('start');
     document.getElementById('tutorial-close').onclick = () => overlay.classList.add('hidden');
   }
 
+
+  function appendCustomCodeSnippet(snippet, label) {
+    const current = extractCustomFromEditor();
+    const next = (current ? current + '\n\n' : '') + snippet;
+    syncCodeFromBlocks(next);
+    log(`Inserted code template: ${label}`, 'success');
+  }
+
+  function createBlocklyBlock(type, fields = {}) {
+    const block = workspace.newBlock(type);
+    Object.entries(fields).forEach(([k, v]) => block.setFieldValue(String(v), k));
+    block.initSvg();
+    block.render();
+    return block;
+  }
+
+  function insertBlockTemplate(key) {
+    if (!selectedObjectId) { log('Select an object first to insert block templates.', 'warn'); return; }
+    if (!workspace) return;
+
+    if (key === 'blocks_spin') {
+      const hat = createBlocklyBlock('event_update');
+      const turn = createBlocklyBlock('turn_y', { DEG: 2 });
+      hat.getInput('DO').connection.connect(turn.previousConnection);
+      hat.moveBy(36, 40);
+    } else if (key === 'blocks_topdown') {
+      const hat = createBlocklyBlock('event_update');
+      const ifL = createBlocklyBlock('controls_if');
+      const condL = createBlocklyBlock('key_is_down', { KEY: 'ArrowLeft' });
+      const moveL = createBlocklyBlock('move_by', { X: -0.15, Y: 0, Z: 0 });
+      ifL.getInput('IF0').connection.connect(condL.outputConnection);
+      ifL.getInput('DO0').connection.connect(moveL.previousConnection);
+
+      const ifR = createBlocklyBlock('controls_if');
+      const condR = createBlocklyBlock('key_is_down', { KEY: 'ArrowRight' });
+      const moveR = createBlocklyBlock('move_by', { X: 0.15, Y: 0, Z: 0 });
+      ifR.getInput('IF0').connection.connect(condR.outputConnection);
+      ifR.getInput('DO0').connection.connect(moveR.previousConnection);
+
+      ifL.nextConnection.connect(ifR.previousConnection);
+      hat.getInput('DO').connection.connect(ifL.previousConnection);
+      hat.moveBy(36, 40);
+    } else if (key === 'blocks_pingpong') {
+      const hat = createBlocklyBlock('event_update');
+      const ifA = createBlocklyBlock('controls_if');
+      const condA = createBlocklyBlock('key_is_down', { KEY: 'KeyA' });
+      const moveA = createBlocklyBlock('move_by', { X: -0.1, Y: 0, Z: 0 });
+      ifA.getInput('IF0').connection.connect(condA.outputConnection);
+      ifA.getInput('DO0').connection.connect(moveA.previousConnection);
+
+      const ifD = createBlocklyBlock('controls_if');
+      const condD = createBlocklyBlock('key_is_down', { KEY: 'KeyD' });
+      const moveD = createBlocklyBlock('move_by', { X: 0.1, Y: 0, Z: 0 });
+      ifD.getInput('IF0').connection.connect(condD.outputConnection);
+      ifD.getInput('DO0').connection.connect(moveD.previousConnection);
+
+      ifA.nextConnection.connect(ifD.previousConnection);
+      hat.getInput('DO').connection.connect(ifA.previousConnection);
+      hat.moveBy(36, 40);
+    }
+
+    scripts[selectedObjectId] = Blockly.serialization.workspaces.save(workspace);
+    syncCodeFromBlocks();
+    log(`Inserted block template: ${SCRIPT_TEMPLATES[key].name}`, 'success');
+  }
+
+  function setupScriptTemplateUI() {
+    const overlay = document.getElementById('snippet-overlay');
+    const openBtn = document.getElementById('btn-script-template');
+    const closeBtn = document.getElementById('btn-snippet-close');
+    if (!overlay || !openBtn || !closeBtn) return;
+
+    openBtn.onclick = () => overlay.classList.remove('hidden');
+    closeBtn.onclick = () => overlay.classList.add('hidden');
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.add('hidden'); });
+
+    overlay.querySelectorAll('[data-snippet]').forEach(btn => {
+      btn.onclick = () => {
+        const key = btn.dataset.snippet;
+        const tpl = SCRIPT_TEMPLATES[key];
+        if (!tpl) return;
+        overlay.classList.add('hidden');
+        if (tpl.type === 'code') appendCustomCodeSnippet(tpl.content, tpl.name);
+        else insertBlockTemplate(key);
+      };
+    });
+  }
+
   function setupUi() {
     setupTabs();
     setupTutorials();
+    setupScriptTemplateUI();
 
     document.getElementById('btn-add-object').onclick = () => {
       const type = prompt('Type: cube, sphere, cylinder, plane, character, camera', 'cube') || 'cube';

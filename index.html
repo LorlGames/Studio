@@ -53,6 +53,7 @@
         <div id="code-toolbar">
           <button class="btn" id="btn-sync-from-blocks">Blocks → Code</button>
           <button class="btn" id="btn-sync-to-blocks">Code → Blocks</button>
+          <button class="btn" id="btn-script-template">+ Script Template</button>
           <span class="hint">Round-trip uses BLOCKLY_META headers (best effort for manual code).</span>
         </div>
         <textarea id="code-textarea" spellcheck="false"></textarea>
@@ -112,6 +113,26 @@
         <button class="template-card" data-template="third_person"><strong>Third Person</strong><span>Follow-camera setup</span></button>
         <button class="template-card" data-template="two_d"><strong>2D</strong><span>Flat playfield starter</span></button>
         <button class="template-card" data-template="blank"><strong>Blank</strong><span>Empty project</span></button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div id="snippet-overlay" class="hidden">
+    <div id="snippet-modal">
+      <h2>Insert Script Template</h2>
+      <p class="template-sub">Choose a small reusable block/code script.</p>
+      <div class="template-grid">
+        <button class="template-card" data-snippet="blocks_topdown"><strong>Blocks: Top-down move</strong><span>Arrow/WASD movement on selected object</span></button>
+        <button class="template-card" data-snippet="blocks_spin"><strong>Blocks: Spin object</strong><span>Rotate every frame</span></button>
+        <button class="template-card" data-snippet="blocks_pingpong"><strong>Blocks: Ping-pong move</strong><span>Move left-right with a variable</span></button>
+        <button class="template-card" data-snippet="code_collect"><strong>Code: Coin collector</strong><span>Score + HUD update snippet</span></button>
+        <button class="template-card" data-snippet="code_camera_shake"><strong>Code: Camera shake hit</strong><span>Simple impact effect</span></button>
+        <button class="template-card" data-snippet="code_multiplayer"><strong>Code: Multiplayer sync</strong><span>Send local player position</span></button>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <button class="btn" id="btn-snippet-close">Close</button>
       </div>
     </div>
   </div>
