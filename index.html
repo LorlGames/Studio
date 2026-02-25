@@ -45,6 +45,7 @@
         <button class="tab-btn" data-tab="code">💻 Code</button>
         <button class="tab-btn" data-tab="scene">🧊 Scene</button>
         <button class="tab-btn" data-tab="assets">🖼 Assets</button>
+        <button class="tab-btn" data-tab="multiplayer">🌐 Multiplayer</button>
       </div>
 
       <div class="tab-panel active" id="tab-blocks"><div id="blocklyDiv"></div></div>
@@ -82,7 +83,41 @@
           <button class="btn" id="btn-import-asset">Import Assets</button>
           <div id="assets-grid"></div>
         </div>
+        <textarea id="code-textarea" spellcheck="false"></textarea>
       </div>
+
+      <div class="tab-panel" id="tab-multiplayer">
+        <div id="mp-toolbar">
+          <label><input type="checkbox" id="mp-enable" checked> Enable multiplayer features</label>
+          <label><input type="checkbox" id="mp-chat-enable" checked> Enable chat popup</label>
+        </div>
+        <div id="mp-layout">
+          <div class="mp-card">
+            <h4>Shared Variables</h4>
+            <div class="mp-row"><input id="mp-var-name" placeholder="name"/><input id="mp-var-value" placeholder="value"/><button class="btn" id="mp-add-var">Add</button></div>
+            <div id="mp-vars-list" class="mp-list"></div>
+          </div>
+          <div class="mp-card">
+            <h4>Shared Lists</h4>
+            <div class="mp-row"><input id="mp-list-name" placeholder="list"/><input id="mp-list-value" placeholder="item"/><button class="btn" id="mp-add-list">Push</button></div>
+            <div id="mp-lists-list" class="mp-list"></div>
+          </div>
+          <div class="mp-card">
+            <h4>Data Tables</h4>
+            <div class="mp-row"><input id="mp-table-name" placeholder="table"/><input id="mp-table-key" placeholder="key"/><input id="mp-table-value" placeholder="value"/><button class="btn" id="mp-add-table">Set</button></div>
+            <div id="mp-tables-list" class="mp-list"></div>
+          </div>
+          <div class="mp-card">
+            <h4>Scoreboard</h4>
+            <div class="mp-row"><input id="mp-score-player" placeholder="player"/><input id="mp-score-value" placeholder="score"/><button class="btn" id="mp-add-score">Set Score</button></div>
+            <div id="mp-score-list" class="mp-list"></div>
+          </div>
+        </div>
+        <canvas id="scene-canvas"></canvas>
+        <div id="scene-stats"></div>
+        <div id="scene-props-content" style="display:none"></div>
+      </div>
+
     </section>
 
     <aside id="right-panel">

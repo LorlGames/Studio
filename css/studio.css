@@ -48,3 +48,14 @@
 #snippet-overlay.hidden{display:none}
 #snippet-modal{width:min(900px,94vw);background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
 #snippet-modal h2{margin:0 0 6px 0;font-size:20px}
+
+
+#mp-toolbar{padding:10px;border-bottom:1px solid var(--border);display:flex;gap:18px;background:var(--panel)}
+#mp-toolbar label{font-size:12px;color:var(--text2);display:flex;align-items:center;gap:6px}
+#mp-layout{padding:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;overflow:auto}
+.mp-card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px}
+.mp-card h4{margin:0 0 8px 0;font-size:13px}
+.mp-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.mp-row input{flex:1;min-width:80px;background:#0f1020;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 8px;font-size:12px}
+.mp-list{display:flex;flex-direction:column;gap:4px;font:12px/1.4 'JetBrains Mono',monospace;color:var(--text2);max-height:170px;overflow:auto}
+.mp-item{padding:6px 8px;background:#101024;border:1px solid #2a2a46;border-radius:6px}

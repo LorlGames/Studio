@@ -7,6 +7,27 @@ window.StudioApp = (() => {
   let suppressBlocklyEvents = false;
   let currentTemplateKey = 'blank';
 
+  const multiplayerState = {
+    enabled: true,
+    chatEnabled: true,
+    sharedVars: {},
+    sharedLists: {},
+    sharedTables: {},
+    scoreboard: {},
+  };
+
+  function normalizeMultiplayerState(raw) {
+    const src = raw && typeof raw === 'object' ? raw : {};
+    return {
+      enabled: src.enabled !== false,
+      chatEnabled: src.chatEnabled !== false,
+      sharedVars: { ...(src.sharedVars || src.vars || {}) },
+      sharedLists: { ...(src.sharedLists || src.lists || {}) },
+      sharedTables: { ...(src.sharedTables || src.tables || {}) },
+      scoreboard: { ...(src.scoreboard || {}) },
+    };
+  }
+
   const KEY_OPTIONS = [
     ['W','KeyW'],['A','KeyA'],['S','KeyS'],['D','KeyD'],
     ['Arrow Up','ArrowUp'],['Arrow Left','ArrowLeft'],['Arrow Down','ArrowDown'],['Arrow Right','ArrowRight'],
@@ -60,7 +81,8 @@ window.StudioApp = (() => {
     blocks: ['Use Blockly blocks to create object scripts.', 'Each object has a dedicated block workspace.', 'Blocks → Code compiles with Blockly JavaScript generator.', 'Code → Blocks restores from BLOCKLY_META comments (best effort).'],
     code: ['Code tab has generated scene + block code + custom code.', 'Scene updates are auto-translated into code.', 'You can keep custom JS in the CUSTOM CODE section.'],
     scene: ['Scene tab places objects in 3D with camera presets.', 'Added objects are translated into scene code.', 'Mark a camera with “PlayerCam=yes” to use it in runtime.'],
-    assets: ['Import textures/audio/models here.', 'Assets are embedded in .lorlgame export and available at runtime.']
+    assets: ['Import textures/audio/models here.', 'Assets are embedded in .lorlgame export and available at runtime.'],
+    multiplayer: ['Configure what multiplayer data is shared.', 'Manage shared variables/lists/tables and scoreboard defaults.', 'Enable in-game chat popup for multiplayer sessions.']
   };
 
   const SCRIPT_TEMPLATES = {
@@ -137,7 +159,18 @@ if (window.Lorl) {
           { kind: 'category', name: 'Logic', colour: '#8b5cf6', contents: [{ kind: 'block', type: 'controls_if' }, { kind: 'block', type: 'logic_compare' }, { kind: 'block', type: 'key_is_down' }, { kind: 'block', type: 'wait_seconds' }] },
           { kind: 'category', name: 'Math', colour: '#10b981', contents: [{ kind: 'block', type: 'math_number' }, { kind: 'block', type: 'math_arithmetic' }] },
           { kind: 'category', name: 'Text', colour: '#64748b', contents: [{ kind: 'block', type: 'text' }, { kind: 'block', type: 'text_print' }] },
-          { kind: 'category', name: 'Variables', custom: 'VARIABLE' }
+          { kind: 'category', name: 'Variables', custom: 'VARIABLE' },
+          { kind: 'category', name: 'Multiplayer Data', colour: '#22c55e', contents: [
+            { kind: 'block', type: 'mp_set_var' },
+            { kind: 'block', type: 'mp_get_var' },
+            { kind: 'block', type: 'mp_list_push' },
+            { kind: 'block', type: 'mp_table_set' },
+            { kind: 'block', type: 'mp_score_set' },
+            { kind: 'block', type: 'mp_score_get' },
+            { kind: 'block', type: 'mp_table_get' },
+            { kind: 'block', type: 'mp_list_get' },
+            { kind: 'block', type: 'mp_chat_send' }
+          ] }
         ]
       },
       grid: { spacing: 20, length: 3, colour: '#2a2a4a', snap: true },
@@ -206,6 +239,40 @@ ${gen.statementToCode(block,'DO')}});
     Blockly.Blocks.key_is_down = { init() { this.appendDummyInput().appendField('key').appendField(new Blockly.FieldDropdown(KEY_OPTIONS), 'KEY').appendField('is down?'); this.setOutput(true, 'Boolean'); this.setColour('#8b5cf6'); } };
     gen.forBlock.key_is_down = b => [`__isKeyDown(${JSON.stringify(b.getFieldValue('KEY'))})`, gen.ORDER_FUNCTION_CALL || 2];
 
+
+
+
+    Blockly.Blocks.mp_set_var = { init() { this.appendDummyInput().appendField('mp set var').appendField(new Blockly.FieldTextInput('health'), 'NAME').appendField('to').appendField(new Blockly.FieldTextInput('100'), 'VALUE'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_set_var = b => `__mpSetVar(${JSON.stringify(b.getFieldValue('NAME'))}, ${JSON.stringify(b.getFieldValue('VALUE'))});
+`;
+
+    Blockly.Blocks.mp_get_var = { init() { this.appendDummyInput().appendField('mp get var').appendField(new Blockly.FieldTextInput('health'), 'NAME'); this.setOutput(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_get_var = b => [`__mpGetVar(${JSON.stringify(b.getFieldValue('NAME'))})`, gen.ORDER_FUNCTION_CALL || 2];
+
+    Blockly.Blocks.mp_list_push = { init() { this.appendDummyInput().appendField('mp list').appendField(new Blockly.FieldTextInput('inventory'), 'LIST').appendField('push').appendField(new Blockly.FieldTextInput('item'), 'VALUE'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_list_push = b => `__mpListPush(${JSON.stringify(b.getFieldValue('LIST'))}, ${JSON.stringify(b.getFieldValue('VALUE'))});
+`;
+
+    Blockly.Blocks.mp_table_set = { init() { this.appendDummyInput().appendField('mp table').appendField(new Blockly.FieldTextInput('stats'), 'TABLE').appendField('key').appendField(new Blockly.FieldTextInput('kills'), 'KEY').appendField('value').appendField(new Blockly.FieldTextInput('1'), 'VALUE'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_table_set = b => `__mpTableSet(${JSON.stringify(b.getFieldValue('TABLE'))}, ${JSON.stringify(b.getFieldValue('KEY'))}, ${JSON.stringify(b.getFieldValue('VALUE'))});
+`;
+
+    Blockly.Blocks.mp_score_set = { init() { this.appendDummyInput().appendField('set score').appendField(new Blockly.FieldTextInput('Player'), 'PLAYER').appendField('to').appendField(new Blockly.FieldTextInput('0'), 'SCORE'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_score_set = b => `__mpScoreSet(${JSON.stringify(b.getFieldValue('PLAYER'))}, ${JSON.stringify(b.getFieldValue('SCORE'))});
+`;
+
+    Blockly.Blocks.mp_score_get = { init() { this.appendDummyInput().appendField('get score for').appendField(new Blockly.FieldTextInput('Player'), 'PLAYER'); this.setOutput(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_score_get = b => [`__mpGetScore(${JSON.stringify(b.getFieldValue('PLAYER'))})`, gen.ORDER_FUNCTION_CALL || 2];
+
+    Blockly.Blocks.mp_table_get = { init() { this.appendDummyInput().appendField('mp table').appendField(new Blockly.FieldTextInput('stats'), 'TABLE').appendField('get key').appendField(new Blockly.FieldTextInput('kills'), 'KEY'); this.setOutput(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_table_get = b => [`__mpTableGet(${JSON.stringify(b.getFieldValue('TABLE'))}, ${JSON.stringify(b.getFieldValue('KEY'))})`, gen.ORDER_FUNCTION_CALL || 2];
+
+    Blockly.Blocks.mp_list_get = { init() { this.appendDummyInput().appendField('mp list').appendField(new Blockly.FieldTextInput('inventory'), 'LIST').appendField('item #').appendField(new Blockly.FieldNumber(0,0,9999,1), 'INDEX'); this.setOutput(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_list_get = b => [`__mpListGet(${JSON.stringify(b.getFieldValue('LIST'))}, ${Number(b.getFieldValue('INDEX')) || 0})`, gen.ORDER_FUNCTION_CALL || 2];
+
+    Blockly.Blocks.mp_chat_send = { init() { this.appendDummyInput().appendField('send chat').appendField(new Blockly.FieldTextInput('Hello'), 'MSG'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_chat_send = b => `__mpChatSend(${JSON.stringify(b.getFieldValue('MSG'))});
+`;
 
     workspace.addChangeListener(() => {
       if (suppressBlocklyEvents || !selectedObjectId) return;
@@ -354,6 +421,7 @@ ${gen.statementToCode(block,'DO')}});
       '// === GENERATED SCENE ===',
       sceneJsonCode(),
       `const __templateMode = ${JSON.stringify(currentTemplateKey)};`,
+      `const __multiplayerConfig = ${JSON.stringify(multiplayerState, null, 2)};`,
       '// === GENERATED BLOCK SCRIPTS ===',
       ...objects.map(buildBlockCodeForObject),
       '// === CUSTOM CODE START ===',
@@ -383,8 +451,7 @@ function __wait(sec){return new Promise(r=>setTimeout(r,(sec||0)*1000));}
 const __keyState = {};
 function __isKeyDown(code){return !!__keyState[code];}
 function __moveForward(o,dist){const yaw=(o.rotY||0)*Math.PI/180;__moveBy(o,Math.sin(yaw)*dist,0,-Math.cos(yaw)*dist);}
-function __turnY(o,deg){o.rotY=(o.rotY||0)+deg;if(o.mesh)o.mesh.rotation.y=(o.rotY||0)*Math.PI/180;}
-`;
+function __turnY(o,deg){o.rotY=(o.rotY||0)+deg;if(o.mesh)o.mesh.rotation.y=(o.rotY||0)*Math.PI/180;}\nconst __mpState = { enabled: true, chatEnabled: true, vars:{}, lists:{}, tables:{}, scoreboard:{} };\nfunction __mpSetVar(n,v){__mpState.vars[n]=v;}\nfunction __mpGetVar(n){return __mpState.vars[n];}\nfunction __mpListPush(name,val){(__mpState.lists[name]=__mpState.lists[name]||[]).push(val);}\nfunction __mpListGet(name,index){const list=__mpState.lists[name]||[];return list[Math.max(0,index|0)];}\nfunction __mpTableSet(t,k,v){(__mpState.tables[t]=__mpState.tables[t]||{})[k]=v;}\nfunction __mpTableGet(t,k){return (__mpState.tables[t]||{})[k];}\nfunction __mpScoreSet(player,score){__mpState.scoreboard[player]=score; __renderScoreboard();}\nfunction __mpGetScore(player){return __mpState.scoreboard[player] ?? 0;}\nfunction __renderScoreboard(){const id='__mp_scoreboard'; let el=document.getElementById(id); if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;top:10px;right:10px;background:#000a;color:#fff;padding:8px 10px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);} el.innerHTML='<b>Scoreboard</b><br>'+Object.entries(__mpState.scoreboard).map(([k,v])=>k+': '+v).join('<br>');}\nfunction __mpChatSend(msg){if(!__mpState.chatEnabled)return;const id='__mp_chat';let el=document.getElementById(id);if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;left:10px;bottom:10px;max-width:45vw;max-height:30vh;overflow:auto;background:#000a;color:#fff;padding:8px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);}const row=document.createElement('div');row.textContent='[chat] '+msg;el.appendChild(row);el.scrollTop=el.scrollHeight;}\nwindow.Multiplayer = { state: __mpState, setVar: __mpSetVar, getVar: __mpGetVar, listPush: __mpListPush, listGet: __mpListGet, tableSet: __mpTableSet, tableGet: __mpTableGet, scoreSet: __mpScoreSet, scoreGet: __mpGetScore, chatSend: __mpChatSend };\n`;
   }
 
   function buildPlayableHtml() {
@@ -392,7 +459,8 @@ function __turnY(o,deg){o.rotY=(o.rotY||0)+deg;if(o.mesh)o.mesh.rotation.y=(o.ro
     const sanitizedEditorCode = editorCode
       .replace(/\/\/ === GENERATED SCENE ===[\s\S]*?\/\/ === GENERATED BLOCK SCRIPTS ===/, '// === GENERATED BLOCK SCRIPTS ===')
       .replace(/const __sceneObjects\s*=\s*[\s\S]*?;\n/, '')
-      .replace(/const __templateMode\s*=\s*[^;]+;\n/, '');
+      .replace(/const __templateMode\s*=\s*[^;]+;\n/, '')
+      .replace(/const __multiplayerConfig\s*=\s*[\s\S]*?;\n/, '');
     return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>html,body{margin:0;height:100%;overflow:hidden;background:#0a0a12}canvas{display:block;width:100%;height:100%}</style>
@@ -403,6 +471,7 @@ function __turnY(o,deg){o.rotY=(o.rotY||0)+deg;if(o.mesh)o.mesh.rotation.y=(o.ro
 ${runtimeLibCode()}
 const __sceneObjects = ${JSON.stringify(objects)};
 const __templateMode = ${JSON.stringify(currentTemplateKey)};
+const __mpConfig = ${JSON.stringify(multiplayerState)};
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0f1020);
 
@@ -444,9 +513,7 @@ for (const o of __sceneObjects) {
   __objects[o.id] = o;
 }
 
-${sanitizedEditorCode}
-
-const player = __sceneObjects.find(o => o.type === 'character' && /player/i.test(o.name)) || __sceneObjects.find(o => o.type === 'character');
+${sanitizedEditorCode}\n\nconst __mpNormalized = (__mpConfig && typeof __mpConfig === 'object') ? {\n  enabled: __mpConfig.enabled !== false,\n  chatEnabled: __mpConfig.chatEnabled !== false,\n  vars: __mpConfig.vars || __mpConfig.sharedVars || {},\n  lists: __mpConfig.lists || __mpConfig.sharedLists || {},\n  tables: __mpConfig.tables || __mpConfig.sharedTables || {},\n  scoreboard: __mpConfig.scoreboard || {}\n} : null;\nif (__mpNormalized) Object.assign(__mpState, __mpNormalized);\nif (__mpState.scoreboard && Object.keys(__mpState.scoreboard).length) __renderScoreboard();\n\nconst player = __sceneObjects.find(o => o.type === 'character' && /player/i.test(o.name)) || __sceneObjects.find(o => o.type === 'character');
 const followDist = 6;
 const followHeight = 3;
 
@@ -492,7 +559,7 @@ __events.emit('start');
     const gameId = projectName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     zip.file('manifest.json', JSON.stringify({ id: gameId, name: projectName, author: 'Unknown', description: '', version: '1.0.0', lorlVersion: '1' }, null, 2));
     zip.file('index.html', buildPlayableHtml());
-    zip.file('.lorl-studio-data', JSON.stringify({ projectName, currentTemplateKey, objects, scripts, assets, code: document.getElementById('code-textarea').value }, null, 2));
+    zip.file('.lorl-studio-data', JSON.stringify({ projectName, currentTemplateKey, multiplayerState, objects, scripts, assets, code: document.getElementById('code-textarea').value }, null, 2));
     const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${gameId || 'game'}.lorlgame`; a.click();
     URL.revokeObjectURL(a.href);
@@ -506,6 +573,7 @@ __events.emit('start');
     const payload = JSON.parse(await dataFile.async('string'));
     clearProject();
     currentTemplateKey = payload.currentTemplateKey && TEMPLATES[payload.currentTemplateKey] ? payload.currentTemplateKey : currentTemplateKey;
+    if (payload.multiplayerState && typeof payload.multiplayerState === 'object') Object.assign(multiplayerState, normalizeMultiplayerState(payload.multiplayerState));
     document.getElementById('template-select').value = currentTemplateKey;
     (payload.objects || []).forEach(o => addObject(o.type, o));
     Object.assign(scripts, payload.scripts || {});
@@ -645,10 +713,77 @@ __events.emit('start');
     });
   }
 
+
+  function renderMultiplayerPanel() {
+    const varsEl = document.getElementById('mp-vars-list');
+    const listsEl = document.getElementById('mp-lists-list');
+    const tablesEl = document.getElementById('mp-tables-list');
+    const scoreEl = document.getElementById('mp-score-list');
+    if (!varsEl || !listsEl || !tablesEl || !scoreEl) return;
+
+    varsEl.innerHTML = Object.entries(multiplayerState.sharedVars).map(([k,v]) => `<div class='mp-item'>${escapeHtml(k)} = ${escapeHtml(v)}</div>`).join('') || '<div class="mp-item">No shared vars yet.</div>';
+    listsEl.innerHTML = Object.entries(multiplayerState.sharedLists).map(([k,v]) => `<div class='mp-item'>${escapeHtml(k)}: [${escapeHtml((v||[]).join(', '))}]</div>`).join('') || '<div class="mp-item">No shared lists yet.</div>';
+    tablesEl.innerHTML = Object.entries(multiplayerState.sharedTables).map(([t,rows]) => `<div class='mp-item'>${escapeHtml(t)} → ${escapeHtml(JSON.stringify(rows))}</div>`).join('') || '<div class="mp-item">No data tables yet.</div>';
+    scoreEl.innerHTML = Object.entries(multiplayerState.scoreboard).map(([p,s]) => `<div class='mp-item'>${escapeHtml(p)}: ${escapeHtml(s)}</div>`).join('') || '<div class="mp-item">No scores yet.</div>';
+
+    const en = document.getElementById('mp-enable');
+    const chat = document.getElementById('mp-chat-enable');
+    if (en) en.checked = !!multiplayerState.enabled;
+    if (chat) chat.checked = !!multiplayerState.chatEnabled;
+  }
+
+  function setupMultiplayerUI() {
+    const bind = (id, fn) => { const el=document.getElementById(id); if(el) el.onclick = fn; };
+    const byId = (id) => document.getElementById(id);
+
+    const en = byId('mp-enable');
+    const chat = byId('mp-chat-enable');
+    if (en) en.onchange = () => { multiplayerState.enabled = en.checked; syncCodeFromBlocks(); };
+    if (chat) chat.onchange = () => { multiplayerState.chatEnabled = chat.checked; syncCodeFromBlocks(); };
+
+    bind('mp-add-var', () => {
+      const n = byId('mp-var-name').value.trim();
+      if (!n) return;
+      multiplayerState.sharedVars[n] = byId('mp-var-value').value;
+      renderMultiplayerPanel();
+      syncCodeFromBlocks();
+    });
+
+    bind('mp-add-list', () => {
+      const n = byId('mp-list-name').value.trim();
+      if (!n) return;
+      multiplayerState.sharedLists[n] = multiplayerState.sharedLists[n] || [];
+      multiplayerState.sharedLists[n].push(byId('mp-list-value').value);
+      renderMultiplayerPanel();
+      syncCodeFromBlocks();
+    });
+
+    bind('mp-add-table', () => {
+      const t = byId('mp-table-name').value.trim();
+      const k = byId('mp-table-key').value.trim();
+      if (!t || !k) return;
+      multiplayerState.sharedTables[t] = multiplayerState.sharedTables[t] || {};
+      multiplayerState.sharedTables[t][k] = byId('mp-table-value').value;
+      renderMultiplayerPanel();
+      syncCodeFromBlocks();
+    });
+
+    bind('mp-add-score', () => {
+      const p = byId('mp-score-player').value.trim();
+      if (!p) return;
+      multiplayerState.scoreboard[p] = byId('mp-score-value').value || '0';
+      renderMultiplayerPanel();
+      syncCodeFromBlocks();
+    });
+
+    renderMultiplayerPanel();
+  }
+
   function setupUi() {
     setupTabs();
     setupTutorials();
     setupScriptTemplateUI();
+    setupMultiplayerUI();
 
     document.getElementById('btn-add-object').onclick = () => {
       const type = prompt('Type: cube, sphere, cylinder, plane, character, camera', 'cube') || 'cube';
