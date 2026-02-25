@@ -54,6 +54,22 @@ window.StudioApp = (() => {
   };
 
   function setupBlockly() {
+    const darkTheme = (Blockly.Themes && Blockly.Themes.Dark) || ((Blockly.Theme && Blockly.Theme.defineTheme && Blockly.Themes && Blockly.Themes.Classic) ? Blockly.Theme.defineTheme('lorlDark', {
+      base: Blockly.Themes.Classic,
+      componentStyles: {
+        workspaceBackgroundColour: '#0f1020',
+        toolboxBackgroundColour: '#15152a',
+        toolboxForegroundColour: '#e2e2f0',
+        flyoutBackgroundColour: '#1a1a32',
+        flyoutForegroundColour: '#e2e2f0',
+        flyoutOpacity: 1,
+        scrollbarColour: '#444477',
+        insertionMarkerColour: '#00e5ff',
+        insertionMarkerOpacity: 0.4,
+      },
+      fontStyle: { family: 'Sora, sans-serif', weight: '500', size: 12 },
+    }) : undefined);
+
     workspace = Blockly.inject('blocklyDiv', {
       toolbox: {
         kind: 'categoryToolbox',
@@ -68,7 +84,9 @@ window.StudioApp = (() => {
           { kind: 'category', name: 'Variables', custom: 'VARIABLE' }
         ]
       },
-      grid: { spacing: 20, length: 3, colour: '#2a2a4a', snap: true }
+      grid: { spacing: 20, length: 3, colour: '#2a2a4a', snap: true },
+      theme: darkTheme,
+      renderer: 'zelos'
     });
 
     const gen = Blockly.JavaScript || (window.javascript && window.javascript.javascriptGenerator);
@@ -88,7 +106,15 @@ window.StudioApp = (() => {
     Blockly.Blocks.look_at_name = { init() { this.appendDummyInput().appendField('look at object').appendField(new Blockly.FieldTextInput('Player'), 'NAME'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#06b6d4'); } };
     gen.forBlock.look_at_name = b => `__lookAt(self, ${JSON.stringify(b.getFieldValue('NAME'))});\n`;
 
-    Blockly.Blocks.set_color_hex = { init() { this.appendDummyInput().appendField('set color').appendField(new Blockly.FieldColour('#ff0000'), 'COLOR'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#ec4899'); } };
+    function makeColorField(defaultColor) {
+      if (Blockly.FieldColour) return new Blockly.FieldColour(defaultColor);
+      if (Blockly.fieldRegistry && Blockly.fieldRegistry.fromJson) {
+        try { return Blockly.fieldRegistry.fromJson({ type: 'field_colour', colour: defaultColor }); } catch (_) {}
+      }
+      return new Blockly.FieldTextInput(defaultColor);
+    }
+
+    Blockly.Blocks.set_color_hex = { init() { this.appendDummyInput().appendField('set color').appendField(makeColorField('#ff0000'), 'COLOR'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#ec4899'); } };
     gen.forBlock.set_color_hex = b => `__setColor(self, ${JSON.stringify(b.getFieldValue('COLOR'))});\n`;
 
     Blockly.Blocks.set_scale_xyz = { init() { this.appendDummyInput().appendField('set scale x').appendField(new Blockly.FieldNumber(1,0.01), 'X').appendField('y').appendField(new Blockly.FieldNumber(1,0.01), 'Y').appendField('z').appendField(new Blockly.FieldNumber(1,0.01), 'Z'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#ec4899'); } };
@@ -181,7 +207,14 @@ window.StudioApp = (() => {
     renderProps(objects.find(o => o.id === id));
     suppressBlocklyEvents = true;
     workspace.clear();
-    if (scripts[id]) Blockly.serialization.workspaces.load(scripts[id], workspace);
+    if (scripts[id]) {
+      try {
+        Blockly.serialization.workspaces.load(scripts[id], workspace);
+      } catch (err) {
+        log('Failed to load block script for this object; script was reset.', 'warn');
+        delete scripts[id];
+      }
+    }
     suppressBlocklyEvents = false;
   }
 
@@ -341,8 +374,10 @@ __events.emit('start');
 
   function previewGame() {
     syncCodeFromBlocks();
-    const blob = new Blob([buildPlayableHtml()], { type: 'text/html' });
-    document.getElementById('preview-frame').src = URL.createObjectURL(blob);
+    const html = buildPlayableHtml();
+    const frame = document.getElementById('preview-frame');
+    frame.removeAttribute('src');
+    frame.srcdoc = html;
     log('Preview running.', 'success');
   }
 
