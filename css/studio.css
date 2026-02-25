@@ -31,3 +31,14 @@
 #tutorial-modal{max-width:560px;background:var(--panel);border:1px solid var(--border);padding:18px;border-radius:10px}
 #assets-inner{padding:10px;display:flex;flex-direction:column;gap:8px}
 .asset-card{padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--panel2);font-size:12px}
+
+
+#template-overlay{position:fixed;inset:0;background:#000b;display:flex;align-items:center;justify-content:center;z-index:2000}
+#template-overlay.hidden{display:none}
+#template-modal{width:min(840px,92vw);background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px}
+#template-modal h2{margin:0 0 6px 0;font-size:20px}
+.template-sub{margin:0 0 14px 0;color:var(--text2);font-size:13px}
+.template-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.template-card{background:var(--panel2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.template-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.template-card span{color:var(--text2);font-size:12px}

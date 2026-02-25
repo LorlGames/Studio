@@ -127,13 +127,30 @@ window.StudioApp = (() => {
     suppressBlocklyEvents = true; workspace.clear(); suppressBlocklyEvents = false;
   }
 
-  function applyTemplate(key) {
+  function applyTemplate(key, opts = {}) {
     const tpl = TEMPLATES[key] || TEMPLATES.blank;
+    document.getElementById('template-select').value = key;
     clearProject();
-    tpl.objects.forEach(seed => addObject(seed.type, seed));
+    tpl.objects.forEach(seed => addObject(seed.type, { ...seed }));
     if (objects[0]) selectObject(objects[0].id);
     syncCodeFromBlocks(tpl.customCode || '');
-    log(`Applied template: ${tpl.name}`, 'success');
+    try { localStorage.setItem('lorl:lastTemplate', key); } catch (_) {}
+    if (!opts.silent) log(`Applied template: ${tpl.name}`, 'success');
+  }
+
+  function openTemplateOverlay() {
+    const overlay = document.getElementById('template-overlay');
+    overlay.classList.remove('hidden');
+
+    const choose = (key) => {
+      overlay.classList.add('hidden');
+      applyTemplate(key);
+      log('Studio ready. Template loaded.', 'success');
+    };
+
+    overlay.querySelectorAll('[data-template]').forEach(btn => {
+      btn.onclick = () => choose(btn.dataset.template);
+    });
   }
 
   function renderObjects() {
@@ -247,7 +264,79 @@ window.StudioApp = (() => {
 
   function buildPlayableHtml() {
     const editorCode = document.getElementById('code-textarea').value;
-    return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;height:100%;overflow:hidden;background:#0a0a12}canvas{display:block;width:100%;height:100%}</style></head><body><canvas id="game"></canvas><script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script><script>${runtimeLibCode()}\nconst __sceneObjects = ${JSON.stringify(objects)};\nconst scene=new THREE.Scene();scene.background=new THREE.Color(0x0f1020);const camDef=__sceneObjects.find(o=>o.type==='camera'&&o.isPlayerCamera)||__sceneObjects.find(o=>o.type==='camera');const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,1000);camera.position.set((camDef&&camDef.x)||0,(camDef&&camDef.y)||6,(camDef&&camDef.z)||10);const renderer=new THREE.WebGLRenderer({canvas:document.getElementById('game'),antialias:true});renderer.setSize(innerWidth,innerHeight);addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();});scene.add(new THREE.HemisphereLight(0xffffff,0x333344,1));const dl=new THREE.DirectionalLight(0xffffff,0.8);dl.position.set(8,12,6);scene.add(dl);\nfor(const o of __sceneObjects){let mesh=null,mat=new THREE.MeshStandardMaterial({color:o.color||'#4488ff'});if(o.type==='cube')mesh=new THREE.Mesh(new THREE.BoxGeometry(1,1,1),mat);else if(o.type==='sphere')mesh=new THREE.Mesh(new THREE.SphereGeometry(0.5,20,12),mat);else if(o.type==='cylinder')mesh=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,1,16),mat);else if(o.type==='plane'){mesh=new THREE.Mesh(new THREE.PlaneGeometry(1,1),mat);mesh.rotation.x=-Math.PI/2;}else if(o.type==='character')mesh=new THREE.Mesh(new THREE.CapsuleGeometry(0.35,0.8,4,8),mat);if(mesh){mesh.position.set(o.x||0,o.y||0,o.z||0);mesh.scale.set(o.scaleX||1,o.scaleY||1,o.scaleZ||1);scene.add(mesh);o.mesh=mesh;}__objects[o.id]=o;}\n${editorCode}\nconst keys={};addEventListener('keydown',e=>{keys[e.code]=true;__events.emit('keydown:'+e.code);});addEventListener('keyup',e=>{keys[e.code]=false;});__events.emit('start');(function loop(){requestAnimationFrame(loop);__events.emit('update',1/60);renderer.render(scene,camera);})();<\/script></body></html>`;
+    const sanitizedEditorCode = editorCode
+      .replace(/\/\/ === GENERATED SCENE ===[\s\S]*?\/\/ === GENERATED BLOCK SCRIPTS ===/, '// === GENERATED BLOCK SCRIPTS ===')
+      .replace(/const __sceneObjects\s*=\s*[\s\S]*?;\n/, '');
+    return `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>html,body{margin:0;height:100%;overflow:hidden;background:#0a0a12}canvas{display:block;width:100%;height:100%}</style>
+</head><body>
+<canvas id="game"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"><\/script>
+<script>
+${runtimeLibCode()}
+const __sceneObjects = ${JSON.stringify(objects)};
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0f1020);
+
+const camDef = __sceneObjects.find(o => o.type === 'camera' && o.isPlayerCamera) || __sceneObjects.find(o => o.type === 'camera');
+const camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 1000);
+if (camDef) {
+  camera.position.set(camDef.x || 0, camDef.y || 6, camDef.z || 10);
+  camera.rotation.set(((camDef.rotX||0)*Math.PI/180), ((camDef.rotY||0)*Math.PI/180), ((camDef.rotZ||0)*Math.PI/180));
+} else {
+  camera.position.set(0, 6, 10);
+}
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('game'), antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+addEventListener('resize', () => {
+  renderer.setSize(innerWidth, innerHeight);
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+});
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x333344,1));
+const dl = new THREE.DirectionalLight(0xffffff,0.8); dl.position.set(8,12,6); scene.add(dl);
+
+for (const o of __sceneObjects) {
+  let mesh = null;
+  const mat = new THREE.MeshStandardMaterial({ color: o.color || '#4488ff' });
+  if (o.type === 'cube') mesh = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), mat);
+  else if (o.type === 'sphere') mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5,20,12), mat);
+  else if (o.type === 'cylinder') mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,1,16), mat);
+  else if (o.type === 'plane') { mesh = new THREE.Mesh(new THREE.PlaneGeometry(1,1), mat); mesh.rotation.x = -Math.PI/2; }
+  else if (o.type === 'character') { const g=new THREE.Group(); const torso=new THREE.Mesh(new THREE.BoxGeometry(0.6,1,0.4),mat); const head=new THREE.Mesh(new THREE.SphereGeometry(0.25,12,10),mat); head.position.y=0.75; g.add(torso); g.add(head); mesh=g; }
+
+  if (mesh) {
+    mesh.position.set(o.x || 0, o.y || 0, o.z || 0);
+    mesh.rotation.set((o.rotX||0)*Math.PI/180, (o.rotY||0)*Math.PI/180, (o.rotZ||0)*Math.PI/180);
+    mesh.scale.set(o.scaleX || 1, o.scaleY || 1, o.scaleZ || 1);
+    scene.add(mesh);
+    o.mesh = mesh;
+  }
+  __objects[o.id] = o;
+}
+
+${sanitizedEditorCode}
+
+const player = __sceneObjects.find(o => o.type === 'character' && /player/i.test(o.name)) || __sceneObjects.find(o => o.type === 'character');
+const followDist = 6;
+const followHeight = 3;
+
+addEventListener('keydown', e => __events.emit('keydown:' + e.code));
+__events.emit('start');
+
+(function loop(){
+  requestAnimationFrame(loop);
+  if (camDef && camDef.isPlayerCamera && player && player.mesh) {
+    camera.position.lerp(new THREE.Vector3(player.mesh.position.x, player.mesh.position.y + followHeight, player.mesh.position.z + followDist), 0.1);
+    camera.lookAt(player.mesh.position.x, player.mesh.position.y + 1, player.mesh.position.z);
+  }
+  __events.emit('update', 1/60);
+  renderer.render(scene, camera);
+})();
+<\/script>
+</body></html>`;
   }
 
   function previewGame() {
@@ -364,7 +453,10 @@ window.StudioApp = (() => {
       e.target.value = '';
     };
 
-    document.getElementById('btn-apply-template').onclick = () => applyTemplate(document.getElementById('template-select').value);
+    document.getElementById('btn-apply-template').onclick = () => {
+      if (objects.length && !confirm('Apply a new template? This replaces current scene/blocks/code.')) return;
+      applyTemplate(document.getElementById('template-select').value);
+    };
   }
 
   function log(message, level = 'info') {
@@ -381,10 +473,13 @@ window.StudioApp = (() => {
   function boot() {
     setupBlockly();
     setupUi();
-    applyTemplate('three_d');
-    log('Studio ready: templates, Blockly, scene→code, export/import .lorlgame.', 'success');
+    try {
+      const last = localStorage.getItem('lorl:lastTemplate');
+      if (last && TEMPLATES[last]) document.getElementById('template-select').value = last;
+    } catch (_) {}
+    openTemplateOverlay();
   }
 
   boot();
-  return { log, refreshProps: () => renderProps(objects.find(o => o.id === selectedObjectId)) };
+  return { log, selectObject, refreshProps: () => renderProps(objects.find(o => o.id === selectedObjectId)) };
 })();

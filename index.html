@@ -86,7 +86,7 @@
 
     <aside id="right-panel">
       <div class="panel-header">Preview</div>
-      <iframe id="preview-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+      <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
       <div class="panel-header">Console</div>
       <div id="console-output"></div>
     </aside>
@@ -97,6 +97,22 @@
       <h2 id="tutorial-title"></h2>
       <p id="tutorial-body"></p>
       <div><button class="btn" id="tutorial-next">Next</button><button class="btn" id="tutorial-close">Close</button></div>
+    </div>
+  </div>
+
+
+
+  <div id="template-overlay" class="hidden">
+    <div id="template-modal">
+      <h2>Choose a project template</h2>
+      <p class="template-sub">Start with a ready setup for your game type.</p>
+      <div class="template-grid">
+        <button class="template-card" data-template="three_d"><strong>3D Starter</strong><span>Ground, player, camera</span></button>
+        <button class="template-card" data-template="first_person"><strong>First Person</strong><span>FPS-style camera setup</span></button>
+        <button class="template-card" data-template="third_person"><strong>Third Person</strong><span>Follow-camera setup</span></button>
+        <button class="template-card" data-template="two_d"><strong>2D</strong><span>Flat playfield starter</span></button>
+        <button class="template-card" data-template="blank"><strong>Blank</strong><span>Empty project</span></button>
+      </div>
     </div>
   </div>
 
