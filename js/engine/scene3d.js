@@ -198,6 +198,14 @@ window.Scene3D = (() => {
         mesh.rotation.x = -Math.PI / 2;
         break;
       }
+      case 'model': {
+        const g = new THREE.Group();
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
+        const badge = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 12), new THREE.MeshStandardMaterial({ color: 0x00e5ff }));
+        badge.position.y = 0.65;
+        g.add(body, badge);
+        return { root: g, pickMesh: body };
+      }
       default: mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat);
     }
     return { root: mesh, pickMesh: mesh };

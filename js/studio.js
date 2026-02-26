@@ -14,6 +14,9 @@ window.StudioApp = (() => {
     sharedLists: {},
     sharedTables: {},
     scoreboard: {},
+    lobbyCode: 'LOCAL',
+    publicLobbyCounter: 1,
+    commands: {},
   };
 
   function normalizeMultiplayerState(raw) {
@@ -25,6 +28,9 @@ window.StudioApp = (() => {
       sharedLists: { ...(src.sharedLists || src.lists || {}) },
       sharedTables: { ...(src.sharedTables || src.tables || {}) },
       scoreboard: { ...(src.scoreboard || {}) },
+      lobbyCode: src.lobbyCode || 'LOCAL',
+      publicLobbyCounter: Number(src.publicLobbyCounter || 1) || 1,
+      commands: { ...(src.commands || {}) },
     };
   }
 
@@ -82,6 +88,7 @@ window.StudioApp = (() => {
     code: ['Code tab has generated scene + block code + custom code.', 'Scene updates are auto-translated into code.', 'You can keep custom JS in the CUSTOM CODE section.'],
     scene: ['Scene tab places objects in 3D with camera presets.', 'Added objects are translated into scene code.', 'Mark a camera with “PlayerCam=yes” to use it in runtime.'],
     assets: ['Import textures/audio/models here.', 'Assets are embedded in .lorlgame export and available at runtime.'],
+    preview: ['Use Run Preview to launch the game runtime.', 'Preview tab shows runtime output and a live scene snapshot together.'],
     multiplayer: ['Configure what multiplayer data is shared.', 'Manage shared variables/lists/tables and scoreboard defaults.', 'Enable in-game chat popup for multiplayer sessions.']
   };
 
@@ -153,7 +160,7 @@ if (window.Lorl) {
         kind: 'categoryToolbox',
         contents: [
           { kind: 'category', name: 'Events', colour: '#f59e0b', contents: [{ kind: 'block', type: 'event_start' }, { kind: 'block', type: 'event_update' }, { kind: 'block', type: 'event_key_down' }, { kind: 'block', type: 'event_key_up' }] },
-          { kind: 'category', name: 'Motion', colour: '#06b6d4', contents: [{ kind: 'block', type: 'move_by' }, { kind: 'block', type: 'set_position' }, { kind: 'block', type: 'move_forward' }, { kind: 'block', type: 'turn_y' }, { kind: 'block', type: 'look_at_name' }, { kind: 'block', type: 'enable_mouse_look' }] },
+          { kind: 'category', name: 'Motion', colour: '#06b6d4', contents: [{ kind: 'block', type: 'move_by' }, { kind: 'block', type: 'set_position' }, { kind: 'block', type: 'move_forward' }, { kind: 'block', type: 'turn_y' }, { kind: 'block', type: 'look_at_name' }, { kind: 'block', type: 'enable_mouse_look' }, { kind: 'block', type: 'get_self_axis' }, { kind: 'block', type: 'get_named_axis' }, { kind: 'block', type: 'get_delta_time' }] },
           { kind: 'category', name: 'Appearance', colour: '#ec4899', contents: [{ kind: 'block', type: 'set_color_hex' }, { kind: 'block', type: 'set_scale_xyz' }] },
           { kind: 'category', name: 'UI', colour: '#84cc16', contents: [{ kind: 'block', type: 'show_text' }] },
           { kind: 'category', name: 'Logic', colour: '#8b5cf6', contents: [{ kind: 'block', type: 'controls_if' }, { kind: 'block', type: 'logic_compare' }, { kind: 'block', type: 'key_is_down' }, { kind: 'block', type: 'wait_seconds' }] },
@@ -169,7 +176,8 @@ if (window.Lorl) {
             { kind: 'block', type: 'mp_score_get' },
             { kind: 'block', type: 'mp_table_get' },
             { kind: 'block', type: 'mp_list_get' },
-            { kind: 'block', type: 'mp_chat_send' }
+            { kind: 'block', type: 'mp_chat_send' },
+            { kind: 'block', type: 'mp_register_command' }
           ] }
         ]
       },
@@ -214,14 +222,20 @@ ${gen.statementToCode(block,'DO')}});
     Blockly.Blocks.enable_mouse_look = { init() { this.appendDummyInput().appendField('enable mouse look sens').appendField(new Blockly.FieldNumber(0.12,0.01,2,0.01), 'SENS').appendField('invert Y').appendField(new Blockly.FieldCheckbox('FALSE'), 'INVERT'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#06b6d4'); } };
     gen.forBlock.enable_mouse_look = b => `__enableMouseLook(self, ${b.getFieldValue('SENS')}, ${b.getFieldValue('INVERT') === 'TRUE'});\n`;
 
+    Blockly.Blocks.get_self_axis = { init() { this.appendDummyInput().appendField('self').appendField(new Blockly.FieldDropdown([['x','x'],['y','y'],['z','z']]), 'AXIS'); this.setOutput(true, 'Number'); this.setColour('#06b6d4'); } };
+    gen.forBlock.get_self_axis = b => [`__getSelfAxis(self, ${JSON.stringify(b.getFieldValue('AXIS'))})`, gen.ORDER_FUNCTION_CALL || 2];
+
+    Blockly.Blocks.get_named_axis = { init() { this.appendDummyInput().appendField('object').appendField(new Blockly.FieldTextInput('Player'), 'NAME').appendField(new Blockly.FieldDropdown([['x','x'],['y','y'],['z','z']]), 'AXIS'); this.setOutput(true, 'Number'); this.setColour('#06b6d4'); } };
+    gen.forBlock.get_named_axis = b => [`__getObjectAxis(${JSON.stringify(b.getFieldValue('NAME'))}, ${JSON.stringify(b.getFieldValue('AXIS'))})`, gen.ORDER_FUNCTION_CALL || 2];
+
+    Blockly.Blocks.get_delta_time = { init() { this.appendDummyInput().appendField('delta time (dt)'); this.setOutput(true, 'Number'); this.setColour('#06b6d4'); } };
+    gen.forBlock.get_delta_time = () => ['__getDeltaTime()', gen.ORDER_FUNCTION_CALL || 2];
+
     Blockly.Blocks.look_at_name = { init() { this.appendDummyInput().appendField('look at object').appendField(new Blockly.FieldTextInput('Player'), 'NAME'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#06b6d4'); } };
     gen.forBlock.look_at_name = b => `__lookAt(self, ${JSON.stringify(b.getFieldValue('NAME'))});\n`;
 
     function makeColorField(defaultColor) {
       if (Blockly.FieldColour) return new Blockly.FieldColour(defaultColor);
-      if (Blockly.fieldRegistry && Blockly.fieldRegistry.fromJson) {
-        try { return Blockly.fieldRegistry.fromJson({ type: 'field_colour', colour: defaultColor }); } catch (_) {}
-      }
       return new Blockly.FieldTextInput(defaultColor);
     }
 
@@ -276,6 +290,9 @@ ${gen.statementToCode(block,'DO')}});
     gen.forBlock.mp_chat_send = b => `__mpChatSend(${JSON.stringify(b.getFieldValue('MSG'))});
 `;
 
+    Blockly.Blocks.mp_register_command = { init() { this.appendDummyInput().appendField('register /command').appendField(new Blockly.FieldTextInput('heal'), 'CMD').appendField('with js').appendField(new Blockly.FieldTextInput('__showText(\"ok\",1);'), 'JS'); this.setPreviousStatement(true); this.setNextStatement(true); this.setColour('#22c55e'); } };
+    gen.forBlock.mp_register_command = b => `__mpRegisterCommand(${JSON.stringify(b.getFieldValue('CMD'))}, () => { ${b.getFieldValue('JS')} });\n`;
+
     workspace.addChangeListener(() => {
       if (suppressBlocklyEvents || !selectedObjectId) return;
       scripts[selectedObjectId] = Blockly.serialization.workspaces.save(workspace);
@@ -287,7 +304,7 @@ ${gen.statementToCode(block,'DO')}});
 
   function addObject(type = 'cube', seed = {}) {
     const id = seed.id || `obj_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
-    const defaults = { id, type, name: seed.name || nextObjName(type), x: 0, y: type === 'plane' ? 0 : 0.5, z: 0, rotX: 0, rotY: 0, rotZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1, color: '#4488ff', isPlayerCamera: false };
+    const defaults = { id, type, name: seed.name || nextObjName(type), x: 0, y: type === 'plane' ? 0 : 0.5, z: 0, rotX: 0, rotY: 0, rotZ: 0, scaleX: 1, scaleY: 1, scaleZ: 1, color: '#4488ff', isPlayerCamera: false, modelAssetName: '' };
     const obj = { ...defaults, ...seed, id, type };
     objects.push(obj);
     renderObjects();
@@ -377,6 +394,7 @@ ${gen.statementToCode(block,'DO')}});
     if (!obj) return (p.innerHTML = '<div class="log">Select an object</div>');
     p.innerHTML = '';
     const fields = [['name', 'text'], ['x', 'number'], ['y', 'number'], ['z', 'number'], ['rotY', 'number'], ['scaleX', 'number'], ['scaleY', 'number'], ['scaleZ', 'number'], ['color', 'text']];
+    if (obj.type === 'model') fields.push(['modelAssetName', 'text']);
     if (obj.type === 'camera') fields.push(['isPlayerCamera', 'select']);
     fields.forEach(([key, type]) => {
       const row = document.createElement('div'); row.className = 'prop';
@@ -454,6 +472,10 @@ const __keyState = {};
 function __isKeyDown(code){return !!__keyState[code];}
 function __moveForward(o,dist){const yaw=(o.rotY||0)*Math.PI/180;__moveBy(o,Math.sin(yaw)*dist,0,-Math.cos(yaw)*dist);}
 function __turnY(o,deg){o.rotY=(o.rotY||0)+deg;if(o.mesh)o.mesh.rotation.y=(o.rotY||0)*Math.PI/180;}
+let __lastDt = 1/60;
+function __getDeltaTime(){return __lastDt;}
+function __getSelfAxis(self, axis){return Number(self && self[axis]) || 0;}
+function __getObjectAxis(name, axis){const o = Object.values(__objects).find(v => v && v.name === name); return Number(o && o[axis]) || 0;}
 const __mouseLookState = { bound:false, target:null, sensitivity:0.12, invertY:false, pitch:0, minPitch:-1.25, maxPitch:1.25 };
 function __bindMouseLook(){
   if (__mouseLookState.bound) return;
@@ -474,10 +496,10 @@ function __enableMouseLook(target, sensitivity, invertY){
   __bindMouseLook();
   const lockTarget = document.getElementById('game') || document.body;
   lockTarget.addEventListener('click', () => {
-    if (!document.pointerLockElement && lockTarget.requestPointerLock) lockTarget.requestPointerLock();
+    if (!document.pointerLockElement && lockTarget.requestPointerLock) lockTarget.requestPointerLock().catch(() => {});
   }, { once: true });
 }
-\nconst __mpState = { enabled: true, chatEnabled: true, vars:{}, lists:{}, tables:{}, scoreboard:{} };\nfunction __mpSetVar(n,v){__mpState.vars[n]=v;}\nfunction __mpGetVar(n){return __mpState.vars[n];}\nfunction __mpListPush(name,val){(__mpState.lists[name]=__mpState.lists[name]||[]).push(val);}\nfunction __mpListGet(name,index){const list=__mpState.lists[name]||[];return list[Math.max(0,index|0)];}\nfunction __mpTableSet(t,k,v){(__mpState.tables[t]=__mpState.tables[t]||{})[k]=v;}\nfunction __mpTableGet(t,k){return (__mpState.tables[t]||{})[k];}\nfunction __mpScoreSet(player,score){__mpState.scoreboard[player]=score; __renderScoreboard();}\nfunction __mpGetScore(player){return __mpState.scoreboard[player] ?? 0;}\nfunction __renderScoreboard(){const id='__mp_scoreboard'; let el=document.getElementById(id); if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;top:10px;right:10px;background:#000a;color:#fff;padding:8px 10px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);} el.innerHTML='<b>Scoreboard</b><br>'+Object.entries(__mpState.scoreboard).map(([k,v])=>k+': '+v).join('<br>');}\nfunction __mpChatSend(msg){if(!__mpState.chatEnabled)return;const id='__mp_chat';let el=document.getElementById(id);if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;left:10px;bottom:10px;max-width:45vw;max-height:30vh;overflow:auto;background:#000a;color:#fff;padding:8px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);}const row=document.createElement('div');row.textContent='[chat] '+msg;el.appendChild(row);el.scrollTop=el.scrollHeight;}\nwindow.Multiplayer = { state: __mpState, setVar: __mpSetVar, getVar: __mpGetVar, listPush: __mpListPush, listGet: __mpListGet, tableSet: __mpTableSet, tableGet: __mpTableGet, scoreSet: __mpScoreSet, scoreGet: __mpGetScore, chatSend: __mpChatSend };\n`;
+\nconst __mpState = { enabled: true, chatEnabled: true, vars:{}, lists:{}, tables:{}, scoreboard:{}, lobbyCode:'LOCAL', publicLobbyCounter:1, commands:{}, commandHandlers:{} };\nfunction __mpSetVar(n,v){__mpState.vars[n]=v;}\nfunction __mpGetVar(n){return __mpState.vars[n];}\nfunction __mpListPush(name,val){(__mpState.lists[name]=__mpState.lists[name]||[]).push(val);}\nfunction __mpListGet(name,index){const list=__mpState.lists[name]||[];return list[Math.max(0,index|0)];}\nfunction __mpTableSet(t,k,v){(__mpState.tables[t]=__mpState.tables[t]||{})[k]=v;}\nfunction __mpTableGet(t,k){return (__mpState.tables[t]||{})[k];}\nfunction __mpScoreSet(player,score){__mpState.scoreboard[player]=score; __renderScoreboard();}\nfunction __mpGetScore(player){return __mpState.scoreboard[player] ?? 0;}\nfunction __renderScoreboard(){const id='__mp_scoreboard'; let el=document.getElementById(id); if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;top:10px;right:10px;background:#000a;color:#fff;padding:8px 10px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);} el.innerHTML='<b>Lobby:</b> '+(__mpState.lobbyCode||'LOCAL')+'<br><b>Scoreboard</b><br>'+Object.entries(__mpState.scoreboard).map(([k,v])=>k+': '+v).join('<br>');}\nfunction __mpJoinLobby(code){__mpState.lobbyCode=(code||'LOCAL').trim()||'LOCAL'; __renderScoreboard(); return __mpState.lobbyCode;}\nfunction __mpJoinPublicLobby(){const n=__mpState.publicLobbyCounter||1; __mpState.publicLobbyCounter=n+1; return __mpJoinLobby('PUBLIC_'+n);}\nfunction __mpRegisterCommand(name,fn){if(!name)return; __mpState.commandHandlers[String(name).toLowerCase()]=fn;}\nfunction __mpChatAddLine(text){const id='__mp_chat';let el=document.getElementById(id);if(!el){el=document.createElement('div');el.id=id;el.style.cssText='position:fixed;left:10px;bottom:46px;max-width:45vw;max-height:30vh;overflow:auto;background:#000a;color:#fff;padding:8px;border-radius:8px;font:12px/1.4 JetBrains Mono,monospace;z-index:30';document.body.appendChild(el);}const row=document.createElement('div');row.textContent=text;el.appendChild(row);el.scrollTop=el.scrollHeight;}\nfunction __mpRunCommand(raw){const t=String(raw||'').trim(); if(!t.startsWith('/')) return false; const parts=t.slice(1).split(/\s+/); const key=(parts.shift()||'').toLowerCase(); const fn=__mpState.commandHandlers[key]; if(!fn){__mpChatAddLine('[system] invalid command: /'+key); return true;} try{ fn(parts); }catch(e){ __mpChatAddLine('[system] command failed: '+e.message); } return true;}\nfunction __mpEnsureChatInput(){const id='__mp_chat_input';let input=document.getElementById(id);if(input) return input; input=document.createElement('input'); input.id=id; input.placeholder='Press T, type chat or /command, Enter'; input.style.cssText='position:fixed;left:10px;bottom:10px;width:min(420px,60vw);display:none;background:#111;color:#fff;border:1px solid #3a3a5a;padding:8px;border-radius:8px;z-index:31;font:12px JetBrains Mono,monospace'; document.body.appendChild(input); input.addEventListener('keydown',(e)=>{ if(e.code==='Enter'){ const msg=input.value.trim(); input.value=''; input.style.display='none'; if(!msg)return; if(__mpRunCommand(msg)) return; __mpChatSend(msg);} else if(e.code==='Escape'){ input.style.display='none'; } e.stopPropagation(); }); document.addEventListener('keydown',(e)=>{ if(e.code==='KeyT' && __mpState.chatEnabled){ input.style.display='block'; input.focus(); e.preventDefault(); }}); return input;}\nfunction __mpChatSend(msg){if(!__mpState.chatEnabled)return; __mpChatAddLine('[chat]['+(__mpState.lobbyCode||'LOCAL')+'] '+msg); if(window.Lorl && typeof Lorl.sendChat==='function'){ try{ Lorl.sendChat({ lobby: __mpState.lobbyCode, text: msg }); }catch(_){} }}\n__mpEnsureChatInput();\nwindow.Multiplayer = { state: __mpState, setVar: __mpSetVar, getVar: __mpGetVar, listPush: __mpListPush, listGet: __mpListGet, tableSet: __mpTableSet, tableGet: __mpTableGet, scoreSet: __mpScoreSet, scoreGet: __mpGetScore, chatSend: __mpChatSend, joinLobby: __mpJoinLobby, joinPublicLobby: __mpJoinPublicLobby, registerCommand: __mpRegisterCommand };\n\n`;
   }
 
   function buildPlayableHtml() {
@@ -488,7 +510,7 @@ function __enableMouseLook(target, sensitivity, invertY){
       .replace(/const __templateMode\s*=\s*[^;]+;\n/, '')
       .replace(/const __multiplayerConfig\s*=\s*[\s\S]*?;\n/, '');
     return `<!doctype html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%277%27 fill=%27%236c4fff%27/%3E%3C/svg%3E">
 <style>html,body{margin:0;height:100%;overflow:hidden;background:#0a0a12}canvas{display:block;width:100%;height:100%}</style>
 </head><body>
 <canvas id="game"></canvas>
@@ -528,6 +550,7 @@ for (const o of __sceneObjects) {
   else if (o.type === 'cylinder') mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,1,16), mat);
   else if (o.type === 'plane') { mesh = new THREE.Mesh(new THREE.PlaneGeometry(1,1), mat); mesh.rotation.x = -Math.PI/2; }
   else if (o.type === 'character') { const g=new THREE.Group(); const torso=new THREE.Mesh(new THREE.BoxGeometry(0.6,1,0.4),mat); const head=new THREE.Mesh(new THREE.SphereGeometry(0.25,12,10),mat); head.position.y=0.75; g.add(torso); g.add(head); mesh=g; }
+      else if (o.type === 'model') { const g=new THREE.Group(); const body=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), mat); const badge=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.1,12), new THREE.MeshStandardMaterial({color:'#00e5ff'})); badge.position.y=0.65; g.add(body); g.add(badge); mesh=g; }
 
   if (mesh) {
     mesh.position.set(o.x || 0, o.y || 0, o.z || 0);
@@ -539,7 +562,7 @@ for (const o of __sceneObjects) {
   __objects[o.id] = o;
 }
 
-${sanitizedEditorCode}\n\nconst __mpNormalized = (__mpConfig && typeof __mpConfig === 'object') ? {\n  enabled: __mpConfig.enabled !== false,\n  chatEnabled: __mpConfig.chatEnabled !== false,\n  vars: __mpConfig.vars || __mpConfig.sharedVars || {},\n  lists: __mpConfig.lists || __mpConfig.sharedLists || {},\n  tables: __mpConfig.tables || __mpConfig.sharedTables || {},\n  scoreboard: __mpConfig.scoreboard || {}\n} : null;\nif (__mpNormalized) Object.assign(__mpState, __mpNormalized);\nif (__mpState.scoreboard && Object.keys(__mpState.scoreboard).length) __renderScoreboard();\n\nconst player = __sceneObjects.find(o => o.type === 'character' && /player/i.test(o.name)) || __sceneObjects.find(o => o.type === 'character');
+${sanitizedEditorCode}\n\nconst __mpNormalized = (__mpConfig && typeof __mpConfig === 'object') ? {\n  enabled: __mpConfig.enabled !== false,\n  chatEnabled: __mpConfig.chatEnabled !== false,\n  vars: __mpConfig.vars || __mpConfig.sharedVars || {},\n  lists: __mpConfig.lists || __mpConfig.sharedLists || {},\n  tables: __mpConfig.tables || __mpConfig.sharedTables || {},\n  scoreboard: __mpConfig.scoreboard || {},\n  lobbyCode: __mpConfig.lobbyCode || 'LOCAL',\n  publicLobbyCounter: __mpConfig.publicLobbyCounter || 1,\n  commands: __mpConfig.commands || {}\n} : null;\nif (__mpNormalized) Object.assign(__mpState, __mpNormalized);\nif (__mpState.scoreboard && Object.keys(__mpState.scoreboard).length) __renderScoreboard();\nObject.keys(__mpState.commands||{}).forEach((k)=>{ __mpRegisterCommand(k, ()=>{ try{ eval(__mpState.commands[k]); }catch(e){ __mpChatAddLine('[system] command script error: '+e.message); } }); });\n\nconst player = __sceneObjects.find(o => o.type === 'character' && /player/i.test(o.name)) || __sceneObjects.find(o => o.type === 'character');
 const followDist = 6;
 const followHeight = 3;
 
@@ -547,8 +570,12 @@ addEventListener('keydown', e => { __keyState[e.code]=true; __events.emit('keydo
 addEventListener('keyup', e => { __keyState[e.code]=false; __events.emit('keyup:' + e.code); });
 __events.emit('start');
 
+let __lastFrameT = performance.now();
 (function loop(){
   requestAnimationFrame(loop);
+  const __now = performance.now();
+  __lastDt = Math.max(0.001, Math.min(0.1, (__now - __lastFrameT) / 1000));
+  __lastFrameT = __now;
   if (camDef && camDef.isPlayerCamera && player && player.mesh) {
     if (__templateMode === 'first_person') {
       const yaw = (player.rotY || 0) * Math.PI / 180;
@@ -568,7 +595,7 @@ __events.emit('start');
       camera.lookAt(player.mesh.position.x, player.mesh.position.y + 1, player.mesh.position.z);
     }
   }
-  __events.emit('update', 1/60);
+  __events.emit('update', __lastDt);
   renderer.render(scene, camera);
 })();
 <\/script>
@@ -623,6 +650,39 @@ __events.emit('start');
     }
   }
 
+  function renderPreviewSceneSnapshot() {
+    const canvas = document.getElementById('preview-scene-canvas');
+    if (!canvas || typeof THREE === 'undefined') return;
+    const w = Math.max(320, canvas.clientWidth || 320);
+    const h = Math.max(220, canvas.clientHeight || 220);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setSize(w, h, false);
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f1020);
+    const camera = new THREE.PerspectiveCamera(55, w / h, 0.1, 1000);
+    camera.position.set(8, 8, 10);
+    camera.lookAt(0, 0, 0);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x333344, 1));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(6, 10, 5); scene.add(dl);
+    for (const o of objects) {
+      let mesh = null;
+      const mat = new THREE.MeshStandardMaterial({ color: o.color || '#4488ff' });
+      if (o.type === 'cube') mesh = new THREE.Mesh(new THREE.BoxGeometry(1,1,1), mat);
+      else if (o.type === 'sphere') mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5,20,12), mat);
+      else if (o.type === 'cylinder') mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.5,1,16), mat);
+      else if (o.type === 'plane') { mesh = new THREE.Mesh(new THREE.PlaneGeometry(1,1), mat); mesh.rotation.x = -Math.PI/2; }
+      else if (o.type === 'character') { const g=new THREE.Group(); const torso=new THREE.Mesh(new THREE.BoxGeometry(0.6,1,0.4),mat); const head=new THREE.Mesh(new THREE.SphereGeometry(0.25,12,10),mat); head.position.y=0.75; g.add(torso); g.add(head); mesh=g; }
+      else if (o.type === 'model') { const g=new THREE.Group(); const body=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), mat); const badge=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.2,0.1,12), new THREE.MeshStandardMaterial({color:'#00e5ff'})); badge.position.y=0.65; g.add(body); g.add(badge); mesh=g; }
+      if (!mesh) continue;
+      mesh.position.set(o.x || 0, o.y || 0, o.z || 0);
+      mesh.rotation.set((o.rotX||0)*Math.PI/180, (o.rotY||0)*Math.PI/180, (o.rotZ||0)*Math.PI/180);
+      mesh.scale.set(o.scaleX || 1, o.scaleY || 1, o.scaleZ || 1);
+      scene.add(mesh);
+    }
+    renderer.render(scene, camera);
+    renderer.dispose();
+  }
+
   function renderAssets() {
     const grid = document.getElementById('assets-grid');
     grid.innerHTML = assets.map(a => `<div class="asset-card">📦 ${escapeHtml(a.name)}</div>`).join('') || '<div class="log">No assets yet.</div>';
@@ -636,6 +696,7 @@ __events.emit('start');
         btn.classList.add('active');
         document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
         if (btn.dataset.tab === 'scene') ensureScene();
+        if (btn.dataset.tab === 'preview') { previewGame(); renderPreviewSceneSnapshot(); }
       };
     });
   }
@@ -762,6 +823,10 @@ __events.emit('start');
     const chat = document.getElementById('mp-chat-enable');
     if (en) en.checked = !!multiplayerState.enabled;
     if (chat) chat.checked = !!multiplayerState.chatEnabled;
+    const lobbyInput = document.getElementById('mp-lobby-code');
+    const lobbyLabel = document.getElementById('mp-lobby-label');
+    if (lobbyInput) lobbyInput.value = multiplayerState.lobbyCode || 'LOCAL';
+    if (lobbyLabel) lobbyLabel.textContent = `Lobby: ${multiplayerState.lobbyCode || 'LOCAL'}`;
   }
 
   function setupMultiplayerUI() {
@@ -772,6 +837,14 @@ __events.emit('start');
     const chat = byId('mp-chat-enable');
     if (en) en.onchange = () => { multiplayerState.enabled = en.checked; syncCodeFromBlocks(); };
     if (chat) chat.onchange = () => { multiplayerState.chatEnabled = chat.checked; syncCodeFromBlocks(); };
+    const lobbyInput = byId('mp-lobby-code');
+    const lobbyLabel = byId('mp-lobby-label');
+    const refreshLobbyLabel = () => { if (lobbyLabel) lobbyLabel.textContent = `Lobby: ${multiplayerState.lobbyCode || 'LOCAL'}`; };
+    const joinBtn = byId('mp-join-lobby');
+    const pubBtn = byId('mp-join-public');
+    if (joinBtn) joinBtn.onclick = () => { const code = (lobbyInput?.value || '').trim() || 'LOCAL'; multiplayerState.lobbyCode = code.toUpperCase() === 'PUBLIC' ? `PUBLIC_${multiplayerState.publicLobbyCounter++}` : code; refreshLobbyLabel(); syncCodeFromBlocks(); };
+    if (pubBtn) pubBtn.onclick = () => { multiplayerState.lobbyCode = `PUBLIC_${multiplayerState.publicLobbyCounter++}`; refreshLobbyLabel(); syncCodeFromBlocks(); };
+    refreshLobbyLabel();
 
     bind('mp-add-var', () => {
       const n = byId('mp-var-name').value.trim();
@@ -818,7 +891,7 @@ __events.emit('start');
     setupMultiplayerUI();
 
     document.getElementById('btn-add-object').onclick = () => {
-      const type = prompt('Type: cube, sphere, cylinder, plane, character, camera', 'cube') || 'cube';
+      const type = prompt('Type: cube, sphere, cylinder, plane, character, camera, model', 'cube') || 'cube';
       addObject(type.trim().toLowerCase());
       syncCodeFromBlocks();
     };
@@ -828,7 +901,9 @@ __events.emit('start');
 
     document.getElementById('btn-sync-from-blocks').onclick = () => syncCodeFromBlocks();
     document.getElementById('btn-sync-to-blocks').onclick = syncBlocksFromCode;
-    document.getElementById('btn-preview').onclick = previewGame;
+    document.getElementById('btn-preview').onclick = () => { const tabBtn = document.querySelector('.tab-btn[data-tab=\"preview\"]'); if (tabBtn) tabBtn.click(); else previewGame(); };
+    const runPreviewBtn = document.getElementById('btn-run-preview-tab');
+    if (runPreviewBtn) runPreviewBtn.onclick = () => { previewGame(); renderPreviewSceneSnapshot(); };
     document.getElementById('btn-export').onclick = exportGame;
 
     document.getElementById('btn-import').onclick = () => document.getElementById('import-file').click();
@@ -844,6 +919,7 @@ __events.emit('start');
       for (const f of Array.from(e.target.files || [])) {
         const data = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
         assets.push({ name: f.name, type: f.type, data });
+        if (/\.(obj|gltf|glb)$/i.test(f.name)) addObject('model', { name: f.name.replace(/\.[^.]+$/, ''), modelAssetName: f.name, color: '#88aaff' });
       }
       renderAssets();
       log(`Imported ${e.target.files.length} asset(s).`, 'success');

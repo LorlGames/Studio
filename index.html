@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Lorl Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%277%27 fill=%27%236c4fff%27/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -45,6 +46,7 @@
         <button class="tab-btn" data-tab="code">💻 Code</button>
         <button class="tab-btn" data-tab="scene">🧊 Scene</button>
         <button class="tab-btn" data-tab="assets">🖼 Assets</button>
+        <button class="tab-btn" data-tab="preview">🎮 Preview</button>
         <button class="tab-btn" data-tab="multiplayer">🌐 Multiplayer</button>
       </div>
 
@@ -68,6 +70,7 @@
           <button class="btn" data-add="plane">▬ Plane</button>
           <button class="btn" data-add="character">🧍 Player</button>
           <button class="btn" data-add="camera">📷 Camera</button>
+          <button class="btn" data-add="model">📦 Model</button>
           <button class="btn" data-view="persp">Persp</button>
           <button class="btn" data-view="top">Top</button>
           <button class="btn" data-view="front">Front</button>
@@ -86,10 +89,34 @@
         <textarea id="code-textarea" spellcheck="false"></textarea>
       </div>
 
+
+      <div class="tab-panel" id="tab-preview">
+        <div id="preview-toolbar">
+          <button class="btn" id="btn-run-preview-tab">Run Preview</button>
+          <span class="hint">Game runtime + scene snapshot in one tab.</span>
+        </div>
+        <div id="preview-split">
+          <iframe id="preview-frame" sandbox="allow-scripts allow-pointer-lock"></iframe>
+          <div id="preview-scene-wrap">
+            <div class="panel-header">Scene Snapshot</div>
+            <canvas id="preview-scene-canvas"></canvas>
+          </div>
+        </div>
+        <canvas id="scene-canvas"></canvas>
+        <div id="scene-stats"></div>
+        <div id="scene-props-content" style="display:none"></div>
+      </div>
+
       <div class="tab-panel" id="tab-multiplayer">
         <div id="mp-toolbar">
           <label><input type="checkbox" id="mp-enable" checked> Enable multiplayer features</label>
           <label><input type="checkbox" id="mp-chat-enable" checked> Enable chat popup</label>
+          <div class="mp-row">
+            <input id="mp-lobby-code" placeholder="Lobby code (e.g. ABC123 or PUBLIC)"/>
+            <button class="btn" id="mp-join-lobby">Join</button>
+            <button class="btn" id="mp-join-public">Public</button>
+          </div>
+          <span id="mp-lobby-label" class="hint">Lobby: LOCAL</span>
         </div>
         <div id="mp-layout">
           <div class="mp-card">
@@ -113,16 +140,11 @@
             <div id="mp-score-list" class="mp-list"></div>
           </div>
         </div>
-        <canvas id="scene-canvas"></canvas>
-        <div id="scene-stats"></div>
-        <div id="scene-props-content" style="display:none"></div>
       </div>
 
     </section>
 
     <aside id="right-panel">
-      <div class="panel-header">Preview</div>
-      <iframe id="preview-frame" sandbox="allow-scripts"></iframe>
       <div class="panel-header">Console</div>
       <div id="console-output"></div>
     </aside>
