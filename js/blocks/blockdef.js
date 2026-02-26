@@ -117,15 +117,50 @@ window.BlockDefs = (() => {
     {
       id: 'multiplayer', name: 'Multiplayer', color: '#06b6d4', icon: '🌐',
       blocks: [
-        { id: 'send_message',   label: 'Broadcast message',         icon: '📡', type: 'stack', fields: [{ type: 'text', name: 'msg', default: 'hit' }, { type: 'text', name: 'data', default: '' }] },
-        { id: 'sync_var',       label: 'Sync variable',             icon: '🔄', type: 'stack', fields: [{ type: 'text', name: 'var', default: 'score' }] },
-        { id: 'get_players',    label: 'Get all players',           icon: '👥', type: 'value', fields: [] },
-        { id: 'get_player_count', label: 'Player count',            icon: '#️⃣', type: 'value', fields: [] },
-        { id: 'my_player_id',   label: 'My player ID',             icon: '🆔', type: 'value', fields: [] },
-        { id: 'my_username',    label: 'My username',               icon: '👤', type: 'value', fields: [] },
-        { id: 'is_server',      label: 'Is host/server?',           icon: '👑', type: 'bool',  fields: [] },
-        { id: 'kick_player',    label: 'Kick player ID',            icon: '🚪', type: 'stack', fields: [{ type: 'text', name: 'id', default: '' }] },
-        { id: 'teleport_all',   label: 'Teleport all players to spawn', icon: '🌀', type: 'stack', fields: [] },
+        // ── Core multiplayer ─────────────────────────────────────────
+        { id: 'send_message',     label: 'Broadcast message',          icon: '📡', type: 'stack',
+          fields: [{ type: 'text', name: 'msg', default: 'hit' }, { type: 'text', name: 'data', default: '' }] },
+        { id: 'sync_var',         label: 'Sync variable',              icon: '🔄', type: 'stack',
+          fields: [{ type: 'text', name: 'var', default: 'score' }] },
+        { id: 'get_players',      label: 'Get all players',            icon: '👥', type: 'value', fields: [] },
+        { id: 'get_player_count', label: 'Player count',               icon: '#️⃣', type: 'value', fields: [] },
+        { id: 'my_player_id',     label: 'My player ID',               icon: '🆔', type: 'value', fields: [] },
+        { id: 'my_username',      label: 'My username',                icon: '👤', type: 'value', fields: [] },
+        { id: 'is_server',        label: 'Is host/server?',            icon: '👑', type: 'bool',  fields: [] },
+        { id: 'kick_player',      label: 'Kick player ID',             icon: '🚪', type: 'stack',
+          fields: [{ type: 'text', name: 'id', default: '' }] },
+        { id: 'teleport_all',     label: 'Teleport all players to spawn', icon: '🌀', type: 'stack', fields: [] },
+
+        // ── Lobby system ─────────────────────────────────────────────
+        // Lobbies are private by default.
+        // Prefix lobby name with "PUBLIC_" to make it publicly listable.
+        { id: 'lobby_create',     label: 'Create lobby',               icon: '🏠', type: 'stack',
+          fields: [
+            { type: 'text',   name: 'name',       default: 'My Lobby' },
+            { type: 'number', name: 'maxPlayers',  default: '8' },
+          ]},
+        { id: 'lobby_create_pub', label: 'Create public lobby',        icon: '🌍', type: 'stack',
+          fields: [
+            { type: 'text',   name: 'name',       default: 'PUBLIC_My Lobby' },
+            { type: 'number', name: 'maxPlayers',  default: '8' },
+          ]},
+        { id: 'lobby_join',       label: 'Join lobby by ID',           icon: '🚪', type: 'stack',
+          fields: [{ type: 'text', name: 'lobbyId', default: '' }] },
+        { id: 'lobby_leave',      label: 'Leave lobby',                icon: '🚶', type: 'stack', fields: [] },
+        { id: 'lobby_close',      label: 'Close lobby (host only)',     icon: '🔒', type: 'stack', fields: [] },
+        { id: 'lobby_kick',       label: 'Kick player from lobby',     icon: '👟', type: 'stack',
+          fields: [{ type: 'text', name: 'playerId', default: '' }] },
+        { id: 'lobby_list',       label: 'List public lobbies',        icon: '📋', type: 'stack',
+          fields: [{ type: 'text', name: 'var', default: 'lobbies' }] },
+        { id: 'lobby_id',         label: 'Current lobby ID',           icon: '🏷️', type: 'value', fields: [] },
+        { id: 'lobby_name',       label: 'Current lobby name',         icon: '📛', type: 'value', fields: [] },
+        { id: 'lobby_is_host',    label: 'Am I the lobby host?',       icon: '👑', type: 'bool',  fields: [] },
+        { id: 'lobby_player_count', label: 'Players in lobby',         icon: '#️⃣', type: 'value', fields: [] },
+        // Events (hat blocks) triggered by lobby events
+        { id: 'on_lobby_joined',  label: 'When lobby joined',          icon: '✅', type: 'hat',   fields: [] },
+        { id: 'on_lobby_left',    label: 'When lobby left/closed',     icon: '🚪', type: 'hat',   fields: [] },
+        { id: 'on_lobby_player_joined', label: 'When player joins lobby', icon: '➕', type: 'hat', fields: [] },
+        { id: 'on_lobby_player_left',   label: 'When player leaves lobby', icon: '➖', type: 'hat', fields: [] },
       ]
     },
     {
