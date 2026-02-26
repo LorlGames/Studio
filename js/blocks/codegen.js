@@ -173,6 +173,54 @@ window.CodeGen = (() => {
       case 'get_player_count': return `(window.Lorl ? Lorl.getPlayers().length : 1)`;
       case 'my_player_id': return `(window.Lorl ? Lorl.getPlayerId() : "local")`;
       case 'my_username':  return `(window.Lorl ? Lorl.getUsername() : "Player")`;
+      // Lobby — create
+      case 'lobby_create':
+        return `if(window.Lorl) Lorl.createLobby({ serverUrl: window.__lorlServerUrl, gameId: window.__lorlGameId, lobbyName: ${vs('name','My Lobby')}, maxPlayers: ${vn('maxPlayers','8')}, username: (window.Lorl ? Lorl.getUsername() : 'Player') }).catch(e=>console.error('[Lorl lobby]',e));`;
+
+      // Lobby — create public (name auto-prefixed with PUBLIC_)
+      case 'lobby_create_pub':
+        return `if(window.Lorl) Lorl.createLobby({ serverUrl: window.__lorlServerUrl, gameId: window.__lorlGameId, lobbyName: 'PUBLIC_' + ${vs('name','My Lobby')}, maxPlayers: ${vn('maxPlayers','8')}, username: (window.Lorl ? Lorl.getUsername() : 'Player') }).catch(e=>console.error('[Lorl lobby]',e));`;
+
+      case 'lobby_join':
+        return `if(window.Lorl) Lorl.joinLobby({ serverUrl: window.__lorlServerUrl, gameId: window.__lorlGameId, lobbyId: ${vs('lobbyId','')}, username: (window.Lorl ? Lorl.getUsername() : 'Player') }).catch(e=>console.error('[Lorl lobby]',e));`;
+
+      case 'lobby_leave':
+        return `if(window.Lorl) Lorl.leaveLobby();`;
+
+      case 'lobby_close':
+        return `if(window.Lorl) Lorl.closeLobby();`;
+
+      case 'lobby_kick':
+        return `if(window.Lorl) Lorl.kickFromLobby(${vs('playerId','')});`;
+
+      case 'lobby_list':
+        return `if(window.Lorl) Lorl.listLobbies({ serverUrl: window.__lorlServerUrl, gameId: window.__lorlGameId }).then(list=>{ __vars[${vs('var','lobbies')}] = list; });`;
+
+      case 'lobby_id':
+        return `(window.Lorl && Lorl.getLobbyInfo() ? Lorl.getLobbyInfo().lobbyId : '')`;
+
+      case 'lobby_name':
+        return `(window.Lorl && Lorl.getLobbyInfo() ? Lorl.getLobbyInfo().lobbyName : '')`;
+
+      case 'lobby_is_host':
+        return `(window.Lorl ? Lorl.isHost() : false)`;
+
+      case 'lobby_player_count':
+        return `(window.Lorl ? Lorl.getPlayers().length : 0)`;
+
+      // Lobby hat events — these register listeners
+      case 'on_lobby_joined':
+        // Hat: wraps children in Lorl.on('lobbyJoined', ...)
+        return `__lorlOnce('lobbyJoined', async function(__lobbyState) {`;  // closed by genHat
+
+      case 'on_lobby_left':
+        return `__lorlOnce('lobbyLeft', async function() {`;
+
+      case 'on_lobby_player_joined':
+        return `__lorlOn('playerJoined', async function(__joinedPlayer) {`;
+
+      case 'on_lobby_player_left':
+        return `__lorlOn('playerLeft', async function(__leftPlayer) {`;
 
       // Variables
       case 'set_var':      return `__vars[${v(b,'name')}] = ${vRaw(b,'val')};`;
@@ -391,6 +439,22 @@ function __createMesh(obj) {
   __scene.add(mesh);
   obj.mesh = mesh;
 }
+
+function __lorlOn(event, handler) {
+   if (window.Lorl) Lorl.on(event, handler);
+}
+function __lorlOnce(event, handler) {
+   if (window.Lorl) {
+    const wrapped = function(data) {
+        Lorl.off(event, wrapped);
+        handler(data);
+   };
+       Lorl.on(event, wrapped);
+   }
+}
+  // Expose server URL + game ID for lobby blocks
+  window.__lorlServerUrl = window.__lorlServerUrl || null;
+  window.__lorlGameId    = window.__lorlGameId    || 'unknown';
 
 // ── Motion helpers ──
 function __setPos(obj, x, y, z) { if(!obj||!obj.mesh) return; obj.mesh.position.set(x,y,z); obj.x=x;obj.y=y;obj.z=z; }
